@@ -5,7 +5,6 @@ import TODDProfileKit
 struct MyProfileView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var authService: AuthService
-    @State private var isGating = false
     @State private var errorMessage: String?
 
     init(model: AppModel) {
@@ -18,9 +17,7 @@ struct MyProfileView: View {
             List {
                 if authService.isSignedIn {
                     Section {
-                        NavigationLink {
-                            SayItProfileEditor(model: model)
-                        } label: {
+                        NavigationLink(value: AppRoute.profileEditor) {
                             HStack(spacing: 12) {
                                 AvatarView(urlString: model.profile?.photoURL ?? authService.currentUser?.photoURL?.absoluteString, name: model.displayName, size: 52)
                                 VStack(alignment: .leading, spacing: 2) {
@@ -33,23 +30,20 @@ struct MyProfileView: View {
                         }
                     }
 
+                    Section {
+                        NavigationLink(value: AppRoute.awards) {
+                            HStack {
+                                Label("Awards", systemImage: "trophy")
+                                Spacer()
+                                Text("\(model.awards.unlockedCount) of \(model.awards.totalCount)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
                     Section("Account") {
-                        NavigationLink("TODD Account") {
-                            ProfileView(
-                                api: ProfileAPI(
-                                    baseURL: model.config.apiBaseURL,
-                                    idToken: { @MainActor [weak authService] in
-                                        guard let authService else { throw AuthServiceError.notSignedIn }
-                                        return try await authService.freshIdToken()
-                                    }
-                                ),
-                                appName: "Say It",
-                                onAccountDeleted: { try? authService.signOut() }
-                            )
-                        }
-                        NavigationLink("Blocked People") {
-                            BlockedPeopleView(model: model)
-                        }
+                        NavigationLink("TODD Account", value: AppRoute.account)
+                        NavigationLink("Blocked People", value: AppRoute.blocked)
                         Button("Sign Out", role: .destructive) {
                             do { try authService.signOut() } catch { errorMessage = error.localizedDescription }
                         }
@@ -61,7 +55,7 @@ struct MyProfileView: View {
                             Text("Sign in to post, comment, and set up a free public profile for your business.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            Button("Sign In") { isGating = true }
+                            NavigationLink("Sign In", value: AppRoute.signIn)
                                 .buttonStyle(.borderedProminent)
                                 .padding(.top, 4)
                         }
@@ -70,7 +64,7 @@ struct MyProfileView: View {
                 }
 
                 Section("About") {
-                    NavigationLink("Community Guidelines") { CommunityGuidelinesView() }
+                    NavigationLink("Community Guidelines", value: AppRoute.guidelines)
                     Link("Terms", destination: AppConfig.termsURL)
                     Link("Privacy Policy", destination: AppConfig.privacyURL)
                     if let mail = URL(string: "mailto:\(AppConfig.supportEmail)?subject=Say%20It%20support") {
@@ -80,15 +74,35 @@ struct MyProfileView: View {
                 }
             }
             .navigationTitle("Me")
-            .sheet(isPresented: $isGating) {
-                ParticipationGate(model: model) { isGating = false }
-            }
+            .appDestinations(model)
             .alert("Something went wrong", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
             }
         }
+    }
+}
+
+/// TODDProfileKit's shared profile screen, with Delete Account.
+struct AccountView: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        ProfileView(
+            api: ProfileAPI(
+                baseURL: model.config.apiBaseURL,
+                idToken: { @MainActor [weak auth = model.auth] in
+                    guard let auth else { throw AuthServiceError.notSignedIn }
+                    return try await auth.freshIdToken()
+                }
+            ),
+            appName: "Say It",
+            onAccountDeleted: {
+                OnboardingDraft.clear()
+                try? model.auth.signOut()
+            }
+        )
     }
 }
 

@@ -10,6 +10,41 @@ The app is **free**. There is no paywall and no StoreKit, and signed-out people 
 
 ## What the app does
 
+### First launch: the wizard (sign in last)
+
+Signed-out, the app opens on `OnboardingWizardView` (ONBOARDING-PROFILE-BILLING-PLAYBOOK.md). The person writes their first post before signing in:
+
+- A 4-segment progress bar. "Download" is already complete.
+- Looking for or offering, then what, then which industry. Each has a default preselected, and industry is a list that expands inline.
+- The post, pre-written from those answers and editable, with a live preview.
+- First and last name (required), then business (skippable).
+- Sign in with Apple or Google. Signing in publishes the post (`AppModel.submitOnboardingDraftIfNeeded`):
+  1. Fill blank TODD profile fields (`/onboarding/profile`).
+  2. Complete the SayIt profile, unless it's already complete.
+  3. Publish the post with moderation, then open it.
+
+The draft is kept in `UserDefaults` and each finished step is recorded, so a failure retries on the next launch without repeating anything. "Already have an account? Sign in" swaps to sign-in in place. "Just browse" opens the feed signed out, because reading SayIt never needs an account (App Store guideline 5.1.1). A shared post link also skips the wizard.
+
+### Awards
+
+`TODDAwardsKit`, backend product `sayit`, synced across devices:
+
+- The Opener: wrote a post in the wizard.
+- On the Record: first post.
+- Open for Business: profile complete.
+- The Connector: sent interest.
+- The Conversationalist: first comment.
+- Wanted: 1 person interested.
+- In Demand: 5 people interested.
+- The Regular: posts on 3 different days.
+- The Legend (hidden): 25 posts.
+
+Post and interest awards are computed from Firestore data (`SayItAwardRules`). Celebrations use `AwardUnlockView`; the grid is a pushed page from Me.
+
+### No popups
+
+Every page pushes (`AppRoute` / `AppDestination`): sign-in, composer, report, guidelines, profile, account, awards. Signing in is also agreeing to the community guidelines; the sign-in page says so and links to them. Only system confirmations (delete, block) and the award celebration are modal.
+
 ### Feed (browse without signing in)
 
 - Live feed of the `posts` collection, newest first (capped at 200).
@@ -27,7 +62,7 @@ The app is **free**. There is no paywall and no StoreKit, and signed-out people 
 
 ### Taking part
 
-Posting, commenting, sending interest, reporting and blocking each open `ParticipationGate` first: native Sign in with Apple or Google (TODDAuthKit), then a one-time acceptance of the community guidelines. After sign-in the app calls `POST /mobile/auth/bootstrap` like every TODD app so the TODD account exists; that call is best-effort and never blocks posting.
+Signed out, commenting, sending interest, reporting and blocking push the sign-in page (native Apple/Google via TODDAuthKit), and New Post goes back to the wizard. After sign-in the app calls `POST /mobile/auth/bootstrap` like every TODD app so the TODD account exists; that call is best-effort and never blocks posting.
 
 New posts go through the same AI moderation as the web (`POST /openai`, same prompt and parser), which sets `contentRating`, `ratingExplanation`, and may correct the category. If moderation fails the post still goes out unrated, as on the web.
 
@@ -80,7 +115,8 @@ The master tenant id is `SAYIT_MASTER_TENANT_ID` in `project.yml`.
 ## Requirements
 
 - Xcode 27+, iOS 17.0+, XcodeGen 2.38+.
-- Sibling packages `../TODDAuthKit` and `../TODDProfileKit`.
+- Sibling packages `../TODDAuthKit`, `../TODDProfileKit` and `../TODDAwardsKit`.
+- Backend: `sayit` in `AWARD_PRODUCTS` (`todd-backend/functions/awards.service.js`). Until that's deployed, awards celebrate on the device and sync later.
 - Firebase iOS app **SayIt iOS** (`1:633736143723:ios:cc8bff3d613d9ad75fe22e`, bundle ID `tech.taliferro.sayitios`) in the `taliferrotech` project. It is already registered.
 
 ## First-time setup
@@ -129,7 +165,7 @@ xcodebuild test -project SayItIOS.xcodeproj -scheme SayItIOS -destination 'platf
 ```
 
 - `SayItIOSTests`: unit tests for everything in `Models/` and `Logic/`. They compile those folders directly (no host app), so they also run from the `SayItIOSTests` scheme without Firebase.
-- `SayItIOSUITests`: signed-out smoke tests against the live feed (browse, open a post, sign-in prompts). They only read.
+- `SayItIOSUITests`: signed-out smoke tests against the live feed. They cover the wizard from defaults to its sign-in step, "Just browse", opening a post, and account-only actions pushing sign-in. They only read. The Debug-only launch argument `-uiTestFreshInstall` resets to first launch.
 
 ## App Store review notes (user-generated content, guideline 1.2)
 

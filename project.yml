@@ -21,6 +21,8 @@ packages:
     path: ../TODDAuthKit
   TODDProfileKit:
     path: ../TODDProfileKit
+  TODDAwardsKit:
+    path: ../TODDAwardsKit
 targets:
   SayItIOS:
     type: application
@@ -91,6 +93,7 @@ targets:
         product: FirebaseFirestore
       - package: TODDAuthKit
       - package: TODDProfileKit
+      - package: TODDAwardsKit
     scheme:
       testTargets:
         - SayItIOSTests

@@ -8,7 +8,6 @@ struct InterestInboxView: View {
     @State private var interests: [Interest] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var isGating = false
 
     init(model: AppModel) {
         self.model = model
@@ -24,7 +23,7 @@ struct InterestInboxView: View {
                     } description: {
                         Text("When someone is interested in one of your posts, you'll see it here.")
                     } actions: {
-                        Button("Sign In") { isGating = true }
+                        NavigationLink("Sign In", value: AppRoute.signIn)
                             .buttonStyle(.borderedProminent)
                     }
                 } else if isLoading && interests.isEmpty {
@@ -54,9 +53,7 @@ struct InterestInboxView: View {
             .navigationTitle("Interest")
             .refreshable { await load() }
             .task(id: authService.userId) { await load() }
-            .sheet(isPresented: $isGating) {
-                ParticipationGate(model: model) { isGating = false }
-            }
+            .appDestinations(model)
         }
     }
 
@@ -76,6 +73,7 @@ struct InterestInboxView: View {
             errorMessage = error.localizedDescription
         }
         await model.refreshUnreadInterests()
+        await model.refreshAwardStats()
     }
 
     @MainActor

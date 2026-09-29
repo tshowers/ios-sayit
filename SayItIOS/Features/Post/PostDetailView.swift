@@ -15,16 +15,11 @@ struct PostDetailView: View {
     @State private var isSending = false
     @State private var interestSent = false
     @State private var errorMessage: String?
-    @State private var pendingAction: PendingAction?
-    @State private var isReporting = false
+    /// The page to push (sign-in, report) - never a sheet.
+    @State private var pushed: AppRoute?
     @State private var confirmBlock = false
     @State private var confirmDelete = false
     @FocusState private var commentFocused: Bool
-
-    private enum PendingAction: Identifiable {
-        case comment, interest, report, block
-        var id: Self { self }
-    }
 
     private var isMine: Bool {
         guard let uid = model.auth.userId else { return false }
@@ -56,17 +51,7 @@ struct PostDetailView: View {
             }
         }
         .task(id: postId) { await load() }
-        .sheet(item: $pendingAction) { action in
-            ParticipationGate(model: model) {
-                pendingAction = nil
-                Task { await resume(action) }
-            }
-        }
-        .sheet(isPresented: $isReporting) {
-            if let post {
-                ReportView(model: model, post: post)
-            }
-        }
+        .navigationDestination(item: $pushed) { AppDestination(model: model, route: $0) }
         .confirmationDialog("Block \(post?.displayName ?? "this person")?", isPresented: $confirmBlock, titleVisibility: .visible) {
             Button("Block", role: .destructive) { Task { await block() } }
         } message: {
@@ -90,7 +75,7 @@ struct PostDetailView: View {
                 PostRowView(post: post, isDetail: true)
                 if !post.isSystemPost && !isMine {
                     Button {
-                        if model.canParticipate { Task { await sendInterest() } } else { pendingAction = .interest }
+                        if model.canParticipate { Task { await sendInterest() } } else { pushed = .signIn }
                     } label: {
                         Label(interestSent ? "Interest sent" : "I'm interested", systemImage: interestSent ? "checkmark.circle.fill" : "hand.thumbsup")
                             .frame(maxWidth: .infinity)
@@ -134,7 +119,7 @@ struct PostDetailView: View {
                 .onTapGesture {
                     if !model.canParticipate {
                         commentFocused = false
-                        pendingAction = .comment
+                        pushed = .signIn
                     }
                 }
             Button {
@@ -160,11 +145,11 @@ struct PostDetailView: View {
                 Button("Delete Post", systemImage: "trash", role: .destructive) { confirmDelete = true }
             } else if !post.isSystemPost {
                 Button("Report Post", systemImage: "flag") {
-                    if model.canParticipate { isReporting = true } else { pendingAction = .report }
+                    pushed = model.canParticipate ? .report(post) : .signIn
                 }
                 if post.authorUid != nil {
                     Button("Block \(post.displayName)", systemImage: "hand.raised") {
-                        if model.auth.isSignedIn { confirmBlock = true } else { pendingAction = .block }
+                        if model.auth.isSignedIn { confirmBlock = true } else { pushed = .signIn }
                     }
                 }
             }
@@ -196,23 +181,14 @@ struct PostDetailView: View {
     }
 
     @MainActor
-    private func resume(_ action: PendingAction) async {
-        switch action {
-        case .comment: commentFocused = true
-        case .interest: await sendInterest()
-        case .report: isReporting = true
-        case .block: confirmBlock = true
-        }
-    }
-
-    @MainActor
     private func sendComment() async {
-        guard model.canParticipate else { pendingAction = .comment; return }
+        guard model.canParticipate else { pushed = .signIn; return }
         isSending = true
         defer { isSending = false }
         do {
             try await model.repository.addComment(postId: postId, content: commentText, displayName: model.displayName)
             commentText = ""
+            model.awards.recordCommented()
             comments = (try? await model.repository.comments(postId: postId)) ?? comments
         } catch {
             errorMessage = error.localizedDescription
@@ -225,6 +201,7 @@ struct PostDetailView: View {
         do {
             try await model.repository.expressInterest(in: post, displayName: model.displayName, postURL: model.postURL(for: post))
             interestSent = true
+            model.awards.recordInterestSent()
         } catch {
             errorMessage = error.localizedDescription
         }

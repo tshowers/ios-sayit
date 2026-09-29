@@ -16,49 +16,44 @@ struct ComposerView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Hi \(model.displayName), say it…", text: $text, axis: .vertical)
-                        .lineLimit(4...8)
-                        .focused($focused)
-                } footer: {
-                    Text("\(PostDraft.remaining(text)) characters left")
-                        .foregroundStyle(PostDraft.remaining(text) < 0 ? .red : .secondary)
-                }
-
-                Section {
-                    Picker("Category", selection: $category) {
-                        ForEach(PostCategory.all, id: \.self) { value in
-                            Text(PostCategory.label(for: value)).tag(value)
-                        }
-                    }
-                } footer: {
-                    Text("Posts are public and screened automatically. Posting as \(model.displayName).")
-                }
-
-                if let errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
+        Form {
+            Section {
+                TextField("Hi \(model.displayName), say it…", text: $text, axis: .vertical)
+                    .lineLimit(4...8)
+                    .focused($focused)
+            } footer: {
+                Text("\(PostDraft.remaining(text)) characters left")
+                    .foregroundStyle(PostDraft.remaining(text) < 0 ? .red : .secondary)
             }
-            .navigationTitle("New Post")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    if isPosting {
-                        ProgressView()
-                    } else {
-                        Button("Post") { Task { await post() } }
-                            .disabled(!PostDraft.canPost(text))
+
+            Section {
+                Picker("Category", selection: $category) {
+                    ForEach(PostCategory.all, id: \.self) { value in
+                        Text(PostCategory.label(for: value)).tag(value)
                     }
                 }
+            } footer: {
+                Text("Posts are public and screened automatically. Posting as \(model.displayName).")
             }
-            .onAppear { focused = true }
-            .interactiveDismissDisabled(isPosting)
+
+            if let errorMessage {
+                Text(errorMessage).foregroundStyle(.red)
+            }
         }
+        .navigationTitle("New Post")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isPosting)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                if isPosting {
+                    ProgressView()
+                } else {
+                    Button("Post") { Task { await post() } }
+                        .disabled(!PostDraft.canPost(text))
+                }
+            }
+        }
+        .onAppear { focused = true }
     }
 
     @MainActor
@@ -78,6 +73,7 @@ struct ComposerView: View {
                 authorHandle: model.profile?.handle,
                 moderation: moderation
             ))
+            Task { await model.refreshAwardStats() }
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

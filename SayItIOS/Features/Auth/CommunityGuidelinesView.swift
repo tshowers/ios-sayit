@@ -1,11 +1,9 @@
 import SwiftUI
 
-/// Everyone agrees to these before their first post, comment, or interest.
-/// App Store guideline 1.2 requires users to accept terms that make clear
-/// there is no tolerance for objectionable content or abusive users.
+/// What everyone agrees to when they sign in (SignInButtons says so and
+/// links here). App Store guideline 1.2 requires users to accept terms that
+/// make clear there is no tolerance for objectionable content or abusive users.
 struct CommunityGuidelinesView: View {
-    var onAgree: (() -> Void)?
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -27,16 +25,6 @@ struct CommunityGuidelinesView: View {
                 }
                 .font(.callout)
 
-                if let onAgree {
-                    Button {
-                        onAgree()
-                    } label: {
-                        Text("I Agree").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .padding(.top, 8)
-                }
             }
             .padding()
         }

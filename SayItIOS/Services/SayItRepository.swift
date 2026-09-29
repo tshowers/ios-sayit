@@ -35,6 +35,12 @@ final class SayItRepository {
         }
     }
 
+    /// When this person posted - drives the post-count awards.
+    func postDates(authorUid uid: String) async throws -> [Date] {
+        let snapshot = try await posts.whereField("authorUid", isEqualTo: uid).limit(to: 200).getDocuments()
+        return snapshot.documents.compactMap { Post(id: $0.documentID, data: FirestoreValues.normalize($0.data())).timestamp }
+    }
+
     func post(id: String) async throws -> Post? {
         let snapshot = try await posts.document(id).getDocument()
         guard snapshot.exists, let data = snapshot.data() else { return nil }

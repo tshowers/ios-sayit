@@ -25,6 +25,20 @@ struct BackendClient {
         return Moderation.parse(reply, fallbackCategory: category)
     }
 
+    /// Wizard answers to the shared TODD profile - `POST /onboarding/profile`,
+    /// which only fills blank fields and never overwrites a profile.
+    func submitOnboardingProfile(_ body: [String: Any]) async throws {
+        var request = URLRequest(url: config.apiBaseURL.appending(path: "onboarding/profile"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(try await idToken())", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw BackendError.requestFailed("Unable to save your profile.")
+        }
+    }
+
     /// Saves the SayIt profile through `POST /sayit/profile/complete`, the
     /// endpoint the web profile page uses (it writes the say-it-profiles doc
     /// server-side and marks it public).
