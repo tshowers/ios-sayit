@@ -1,0 +1,127 @@
+name: SayItIOS
+options:
+  minimumXcodeGenVersion: 2.38.0
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: tech.taliferro.sayitios
+    # Real device builds need a real team for the Associated Domains
+    # capability (Universal Links) to actually provision - matches the
+    # other TODD apps.
+    DEVELOPMENT_TEAM: "6377FLHLAG"
+    IPHONEOS_DEPLOYMENT_TARGET: 17.0
+    SWIFT_VERSION: 5.0
+packages:
+  FirebaseiOS:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 10.29.0
+  TODDAuthKit:
+    path: ../TODDAuthKit
+  TODDProfileKit:
+    path: ../TODDProfileKit
+targets:
+  SayItIOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: SayItIOS
+    settings:
+      base:
+        PRODUCT_NAME: SayItIOS
+        # Bump CURRENT_PROJECT_VERSION for every App Store Connect upload.
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SAYIT_API_BASE_URL: https://api.taliferro.tech/api
+        SAYIT_WEB_BASE_URL: https://sayit.taliferro.tech
+        # Same key the web app sends to /openai for post moderation
+        # (web-products/sayit environment.apiKey).
+        SAYIT_BACKEND_API_KEY: AIzaSyCAAgRd8tq9PXkPKE2zddseYtZ-Xx_P8mU
+        # SayIt is single-tenant: every profile lives under the Taliferro
+        # master tenant (web-products/sayit environment.taliferroTenantId).
+        SAYIT_MASTER_TENANT_ID: yH3nWanUv0RqDCNfwXBOXLWuxt52
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: SayIt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Only standard HTTPS (exempt) - App Store Connect won't hold builds
+        # for the export compliance question.
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        SAYIT_API_BASE_URL: $(SAYIT_API_BASE_URL)
+        SAYIT_WEB_BASE_URL: $(SAYIT_WEB_BASE_URL)
+        SAYIT_BACKEND_API_KEY: $(SAYIT_BACKEND_API_KEY)
+        SAYIT_MASTER_TENANT_ID: $(SAYIT_MASTER_TENANT_ID)
+        # Native Google Sign-In's redirect callback scheme: the
+        # REVERSED_CLIENT_ID from this app's GoogleService-Info.plist,
+        # caught by GoogleSignInHelper.handle(url) in SayItIOSApp.swift.
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - com.googleusercontent.apps.633736143723-1q2qs7bh7jis5t0p0rp1t8rlifmvou1u
+    entitlements:
+      path: SayItIOS.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
+        # Universal Links: tapping a sayit.taliferro.tech/post/<id> link
+        # opens the post in this app. Needs the AASA file served at
+        # sayit.taliferro.tech/.well-known/apple-app-site-association
+        # (web-products/sayit/public/.well-known).
+        com.apple.developer.associated-domains:
+          - applinks:sayit.taliferro.tech
+    dependencies:
+      - package: FirebaseiOS
+        product: FirebaseAuth
+      - package: FirebaseiOS
+        product: FirebaseFirestore
+      - package: TODDAuthKit
+      - package: TODDProfileKit
+    scheme:
+      testTargets:
+        - SayItIOSTests
+        - SayItIOSUITests
+  # Unit tests for the plain-Swift models and logic. They compile those
+  # folders directly (no host app), so they run without Firebase or a
+  # GoogleService-Info.plist.
+  SayItIOSTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: SayItIOSTests
+      - path: SayItIOS/Models
+      - path: SayItIOS/Logic
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: tech.taliferro.sayitios.tests
+    scheme:
+      testTargets:
+        - SayItIOSTests
+  # Signed-out UI smoke tests (read-only, against the live feed).
+  SayItIOSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: SayItIOSUITests
+    dependencies:
+      - target: SayItIOS
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: tech.taliferro.sayitios.uitests
+        TEST_TARGET_NAME: SayItIOS
