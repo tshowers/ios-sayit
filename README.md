@@ -1,7 +1,7 @@
 # SayIt iOS
 
 <p align="center">
-  <img src="SayItIOS/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png" alt="SayIt app icon" width="160">
+  <img src="docs/sayit-banner.png" alt="Say It" width="100%">
 </p>
 
 SayIt iOS is the native iPhone app for Say It, the public board where businesses say what they need or offer. It is a SwiftUI client for the same Firestore data as https://sayit.taliferro.tech, so posts, comments, interest, and profiles are shared between the app and the web.
