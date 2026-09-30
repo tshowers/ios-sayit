@@ -20,6 +20,7 @@ struct ReportView: View {
                     Label("Thanks - we'll review this within 24 hours.", systemImage: "checkmark.seal.fill")
                         .foregroundStyle(.green)
                 }
+                    .listRowBackground(Theme.neutral100)
             } else {
                 Section("Why are you reporting this post?") {
                     Picker("Reason", selection: $reason) {
@@ -28,16 +29,20 @@ struct ReportView: View {
                     .pickerStyle(.inline)
                     .labelsHidden()
                 }
+                    .listRowBackground(Theme.neutral100)
                 if post.authorUid != nil {
                     Section {
                         Toggle("Also block \(post.displayName)", isOn: $alsoBlock)
                     }
+                    .listRowBackground(Theme.neutral100)
                 }
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground.ignoresSafeArea())
         .navigationTitle("Report Post")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -68,7 +68,7 @@ struct InboxView: View {
                         }
                         .font(Theme.body(12.5, .bold))
                         .padding(.horizontal, 14).frame(height: 36)
-                        .foregroundStyle(filter == option ? Theme.cream : Theme.text)
+                        .foregroundStyle(filter == option ? Theme.ground : Theme.text)
                         .background(filter == option ? Theme.text : .clear, in: Capsule())
                         .overlay(Capsule().stroke(filter == option ? .clear : Theme.divider))
                     }
@@ -273,7 +273,7 @@ struct ThreadView: View {
                         }
                     }
                     Text(thread.postTitle).font(Theme.body(14, .bold)).foregroundStyle(Theme.text).lineLimit(1)
-                    Text("View post").font(Theme.body(12, .semibold)).foregroundStyle(Theme.accent700)
+                    Text("View post").font(Theme.body(12, .semibold)).foregroundStyle(Theme.accentInk)
                 }
                 Spacer()
             }

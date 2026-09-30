@@ -18,6 +18,9 @@ The UI follows the Claude Design handoff (`corporate/design_handoff_sayit_post_f
   - **1c Ribbon:** the org name down a side ribbon, a price sticker, and a big round "I'm interested" button.
 
   Posts without a photo become quote cards. Each post also has a ••• button for comments, Report and Block, which the design didn't include.
+- **Every post follows the prototypes:** the photo area, or the design's striped placeholder in the org's tone when there's no photo, with the headline, caption, category and **AI summary** (moderation's `ratingExplanation`, the web's "Content Description").
+- **Light and dark:** every screen follows the system appearance. `Theme` pairs each handoff color with a dark counterpart from the same warm ramp.
+- **Sizing:** type and controls scale with the device (`Theme.scale`, up to 1.35× on iPad), and each post's content sits in a 600pt column on wide screens.
 - **Layout choice:** picked in onboarding ("How should posts look?") and changeable under Me → Feed layout. It's stored as `feedLayout` on the SayIt profile. Every like, "I'm interested" and message also writes `sayit-layout-events {uid, layout, action, postId}`, so the winning layout can be chosen from real engagement.
 - **Top bar:** SayIt wordmark, For you / Orgs / Inbox, compose (+), and your avatar for Me. There's no bottom tab bar.
 - **Inbox** (`InboxView`, `ThreadView`):

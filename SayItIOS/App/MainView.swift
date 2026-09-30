@@ -100,7 +100,7 @@ struct MainView: View {
                             Circle().fill(Theme.accent400).frame(width: 7, height: 7)
                         }
                     }
-                    .foregroundStyle(model.selectedTab == tab ? (onDark ? Theme.cream : Theme.accent700) : ink.opacity(0.55))
+                    .foregroundStyle(model.selectedTab == tab ? (onDark ? Theme.cream : Theme.accentInk) : ink.opacity(0.55))
                 }
                 .accessibilityAddTraits(model.selectedTab == tab ? .isSelected : [])
                 .accessibilityLabel(tab == .inbox && model.unreadThreadCount > 0 ? "Inbox, \(model.unreadThreadCount) new" : title)
@@ -122,7 +122,7 @@ struct MainView: View {
                         }
                     }
                     .padding(.horizontal, 10).frame(height: 28)
-                    .foregroundStyle(model.selectedTab == tab ? Theme.text : Theme.cream)
+                    .foregroundStyle(model.selectedTab == tab ? Theme.ink : Theme.cream)
                     .background(model.selectedTab == tab ? Theme.cream : .clear, in: Capsule())
                 }
                 .accessibilityAddTraits(model.selectedTab == tab ? .isSelected : [])

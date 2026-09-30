@@ -79,7 +79,7 @@ struct ComposerView: View {
                     .font(Theme.body(12.5)).foregroundStyle(Theme.neutral700)
 
                 if let errorMessage {
-                    Text(errorMessage).font(Theme.body(13, .semibold)).foregroundStyle(Theme.accent700)
+                    Text(errorMessage).font(Theme.body(13, .semibold)).foregroundStyle(Theme.accentInk)
                 }
 
                 Button { Task { await post() } } label: {
@@ -154,7 +154,7 @@ struct ComposerView: View {
             HStack {
                 label(title)
                 Spacer()
-                Text("\(limit - text.wrappedValue.count)").font(Theme.body(12)).foregroundStyle(text.wrappedValue.count > limit ? Theme.accent700 : Theme.neutral700)
+                Text("\(limit - text.wrappedValue.count)").font(Theme.body(12)).foregroundStyle(text.wrappedValue.count > limit ? Theme.accentInk : Theme.neutral700)
             }
             TextField(prompt, text: text, axis: axis)
                 .font(Theme.body(16))
@@ -168,7 +168,7 @@ struct ComposerView: View {
         Button(action: action) {
             Text(text).font(Theme.body(13, .bold))
                 .padding(.horizontal, 14).frame(height: 36)
-                .foregroundStyle(selected ? Theme.cream : Theme.text)
+                .foregroundStyle(selected ? Theme.ground : Theme.text)
                 .background(selected ? Theme.text : .clear, in: Capsule())
                 .overlay(Capsule().stroke(selected ? .clear : Theme.divider))
         }

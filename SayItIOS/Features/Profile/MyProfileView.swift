@@ -28,6 +28,7 @@ struct MyProfileView: View {
                             }
                         }
                     }
+                    .listRowBackground(Theme.neutral100)
 
                     Section {
                         NavigationLink(value: AppRoute.layoutPicker) {
@@ -46,6 +47,7 @@ struct MyProfileView: View {
                             }
                         }
                     }
+                    .listRowBackground(Theme.neutral100)
 
                     Section("Account") {
                         NavigationLink("TODD Account", value: AppRoute.account)
@@ -54,6 +56,7 @@ struct MyProfileView: View {
                             do { try authService.signOut() } catch { errorMessage = error.localizedDescription }
                         }
                     }
+                    .listRowBackground(Theme.neutral100)
                 } else {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
@@ -67,6 +70,7 @@ struct MyProfileView: View {
                         }
                         .padding(.vertical, 6)
                     }
+                    .listRowBackground(Theme.neutral100)
                 }
 
                 Section("About") {
@@ -78,6 +82,7 @@ struct MyProfileView: View {
                     }
                     Link("Say It on the Web", destination: model.config.webBaseURL)
                 }
+                    .listRowBackground(Theme.neutral100)
             }
             .scrollContentBackground(.hidden)
             .background(Theme.ground.ignoresSafeArea())
@@ -134,6 +139,7 @@ struct SayItProfileEditor: View {
             } footer: {
                 Text("This is how people find you. Example: \"Commercial cleaning for offices in Seattle.\"")
             }
+                    .listRowBackground(Theme.neutral100)
 
             Section("Business") {
                 TextField("Business name", text: $draft.businessName)
@@ -149,23 +155,28 @@ struct SayItProfileEditor: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
+                    .listRowBackground(Theme.neutral100)
 
             Section("Introduce yourself") {
                 TextField("Tagline", text: $draft.tagline)
                 TextField("Pinned intro", text: $draft.pinnedIntro, axis: .vertical)
                     .lineLimit(2...6)
             }
+                    .listRowBackground(Theme.neutral100)
 
             Section {
                 Text("Your profile is public and appears in the Say It business directory.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+                    .listRowBackground(Theme.neutral100)
 
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.red)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground.ignoresSafeArea())
         .navigationTitle("Say It Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -240,6 +251,8 @@ struct BlockedPeopleView: View {
                 Text(errorMessage).foregroundStyle(.red)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground.ignoresSafeArea())
         .navigationTitle("Blocked People")
     }
 }

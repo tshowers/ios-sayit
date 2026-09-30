@@ -215,7 +215,7 @@ struct OrgProfileView: View {
                         .font(Theme.body(15)).foregroundStyle(Theme.neutral800)
                     if let url = URL(string: org.website), !org.website.isEmpty {
                         Link(org.website.replacingOccurrences(of: "https://", with: ""), destination: url)
-                            .font(Theme.body(14, .semibold)).foregroundStyle(Theme.accent700)
+                            .font(Theme.body(14, .semibold)).foregroundStyle(Theme.accentInk)
                     }
                 }
             }

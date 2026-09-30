@@ -85,6 +85,7 @@ struct PostDetailView: View {
                     .listRowSeparator(.hidden)
                 }
             }
+                    .listRowBackground(Theme.neutral100)
 
             Section("Comments") {
                 if comments.isEmpty {
@@ -100,8 +101,11 @@ struct PostDetailView: View {
                         }
                 }
             }
+                    .listRowBackground(Theme.neutral100)
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground.ignoresSafeArea())
         .refreshable { await load() }
         .safeAreaInset(edge: .bottom) { commentBar }
     }

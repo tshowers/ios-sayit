@@ -8,39 +8,63 @@ enum Theme {
         Color(.sRGB, red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255, opacity: opacity)
     }
 
-    // Ground and text
-    static let ground = hex(0xF5EAD8)
-    static let surface = hex(0xEBDDC5)
-    static let text = hex(0x201E1D)
-    static let divider = hex(0x201E1D, 0.16)
+    /// Follows the system appearance: the handoff's light value, or a dark
+    /// counterpart from the same warm ramp.
+    static func adaptive(_ light: UInt32, _ dark: UInt32, _ opacity: Double = 1) -> Color {
+        func ui(_ v: UInt32) -> UIColor {
+            UIColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: opacity)
+        }
+        return Color(UIColor { $0.userInterfaceStyle == .dark ? ui(dark) : ui(light) })
+    }
+
+    // Ground and text (adaptive)
+    static let ground = adaptive(0xF5EAD8, 0x1B1916)
+    static let surface = adaptive(0xEBDDC5, 0x2B2723)
+    static let text = adaptive(0x201E1D, 0xF3EBDD)
+    static let divider = adaptive(0x201E1D, 0xF3EBDD, 0.16)
+    /// Accent-colored text and links: terracotta 700 on light, 400 on dark.
+    static let accentInk = adaptive(0x8C491A, 0xF6A06B)
+
+    // Fixed: text on photos, scrims, filled buttons, tags with their own fill.
     static let cream = hex(0xF9F4ED)
+    static let ink = hex(0x201E1D)
     static let scrim = hex(0x201E1D)
 
     // Terracotta
     static let accent = hex(0xC67139)
-    static let accent100 = hex(0xFFF2EB)
+    static let accent100 = adaptive(0xFFF2EB, 0x3A2416)
     static let accent200 = hex(0xFFE1D0)
     static let accent400 = hex(0xF6A06B)
     static let accent600 = hex(0xB2622D)
     static let accent700 = hex(0x8C491A)
-    static let accent800 = hex(0x643312)
+    static let accent800 = adaptive(0x643312, 0xFFC6A5)
 
     // Sage
-    static let sage100 = hex(0xF0FAE1)
+    static let sage100 = adaptive(0xF0FAE1, 0x26301C)
     static let sage200 = hex(0xE1EECC)
     static let sage300 = hex(0xCCDBB2)
     static let sage700 = hex(0x56633F)
-    static let sage800 = hex(0x3D472B)
+    static let sage800 = adaptive(0x3D472B, 0xCCDBB2)
     static let sage900 = hex(0x272E1B)
 
-    // Neutrals
-    static let neutral100 = hex(0xF9F4ED)
-    static let neutral200 = hex(0xEEE7DB)
+    // Neutrals (adaptive where they're grounds or secondary text)
+    static let neutral100 = adaptive(0xF9F4ED, 0x25221E)
+    static let neutral200 = adaptive(0xEEE7DB, 0x332F2A)
     static let neutral300 = hex(0xDCD3C4)
-    static let neutral700 = hex(0x645C50)
-    static let neutral800 = hex(0x474238)
+    static let neutral700 = adaptive(0x645C50, 0xB3A898)
+    static let neutral800 = adaptive(0x474238, 0xD6CCBC)
     static let neutral900 = hex(0x2E2B25)
     static let media = hex(0x2E2B25)
+
+    /// Type and column scale: 1 on phones, up to 1.35 on iPad, so text isn't
+    /// phone-sized on a big screen.
+    static let scale: CGFloat = {
+        let shortSide = min(UIScreen.main.bounds.width, UIScreen.main.bounds.height)
+        return min(max(shortSide / 390, 1), 1.35)
+    }()
+
+    /// Width of a post's content column on big screens (the design is a phone).
+    static let readableWidth: CGFloat = 600
 
     /// Org tones (the handoff's sample orgs), all legible under cream text.
     static let orgPalette: [Color] = [hex(0x728157), hex(0xB2622D), hex(0x645C50), hex(0x8C491A), hex(0x56633F)]
@@ -50,9 +74,9 @@ enum Theme {
     }
 
     // Type
-    static func display(_ size: CGFloat) -> Font { .custom("Caprasimo-Regular", size: size, relativeTo: .title) }
+    static func display(_ size: CGFloat) -> Font { .custom("Caprasimo-Regular", size: size * scale, relativeTo: .title) }
     static func body(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom("Figtree", size: size, relativeTo: .body).weight(weight)
+        .custom("Figtree", size: size * scale, relativeTo: .body).weight(weight)
     }
 }
 
@@ -108,8 +132,8 @@ struct RingAvatar: View {
 
     private var initials: some View {
         Text(Formatting.initials(name))
-            .font(Theme.body(size * 0.33, .bold))
-            .foregroundStyle(Theme.text)
+            .font(Theme.body(size * 0.33 / Theme.scale, .bold))
+            .foregroundStyle(Theme.ink)
     }
 }
 
@@ -182,7 +206,7 @@ struct ToastView: View {
             .padding(.vertical, 10)
             .padding(.horizontal, 16)
             .foregroundStyle(Theme.cream)
-            .background(Theme.text.opacity(0.9), in: Capsule())
+            .background(Theme.scrim.opacity(0.9), in: Capsule())
             .shadow(color: Theme.neutral900.opacity(0.22), radius: 16, y: 6)
             .accessibilityAddTraits(.isStaticText)
     }
