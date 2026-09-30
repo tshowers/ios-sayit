@@ -343,7 +343,7 @@ struct PostStage<Content: View>: View {
         if post.imageURL != nil {
             photo(width: size.width, height: h * 0.6, fadeTo: .bottom)
         } else {
-            band(width: size.width)
+            band(width: size.width, height: size.height)
         }
 
         let words = VStack(spacing: 0) { content() }
@@ -392,7 +392,7 @@ struct PostStage<Content: View>: View {
                 .frame(width: size.width * 0.44)
             }
         } else {
-            band(width: size.width)
+            band(width: size.width, height: size.height)
             VStack(spacing: 0) {
                 Color.clear.frame(height: topInset + 56)
                 Spacer(minLength: 0)
@@ -431,15 +431,23 @@ struct PostStage<Content: View>: View {
         .accessibilityHidden(true)
     }
 
-    /// No photo: the org's color and stripes behind the top bar only.
-    private func band(width: CGFloat) -> some View {
+    /// No photo: the org's color and stripes over the top of the screen,
+    /// fading out through the middle like a photo does - solid to about 35%
+    /// down, then a long, eased fade that's gone by about 65%.
+    private func band(width: CGFloat, height: CGFloat) -> some View {
         ZStack {
             Theme.orgColor(post.orgLabel)
             Stripes(color: Theme.scrim.opacity(0.18))
         }
-        .frame(width: width, height: topInset + 44)
-        .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .clear, location: 1)],
-                             startPoint: .top, endPoint: .bottom))
+        .frame(width: width, height: height * 0.65)
+        .mask(LinearGradient(stops: [
+            .init(color: .black, location: 0),
+            .init(color: .black, location: 0.54),
+            .init(color: .black.opacity(0.75), location: 0.66),
+            .init(color: .black.opacity(0.42), location: 0.8),
+            .init(color: .black.opacity(0.15), location: 0.91),
+            .init(color: .clear, location: 1),
+        ], startPoint: .top, endPoint: .bottom))
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
