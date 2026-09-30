@@ -28,6 +28,14 @@ struct Post: Identifiable, Equatable, Hashable {
     var isHidden: Bool
     /// System posts written by TODD itself rather than a person.
     var isSystemPost: Bool
+    /// Set by the new composer; older posts only have `content`.
+    var title: String?
+    var caption: String?
+    var kind: PostKind?
+    var price: String?
+    var authorRole: String?
+    var orgName: String?
+    var favoriteUserIds: [String] = []
 
     init(
         id: String,
@@ -45,7 +53,14 @@ struct Post: Identifiable, Equatable, Hashable {
         authorEmail: String? = nil,
         favoriteCount: Int = 0,
         isHidden: Bool = false,
-        isSystemPost: Bool = false
+        isSystemPost: Bool = false,
+        title: String? = nil,
+        caption: String? = nil,
+        kind: PostKind? = nil,
+        price: String? = nil,
+        authorRole: String? = nil,
+        orgName: String? = nil,
+        favoriteUserIds: [String] = []
     ) {
         self.id = id
         self.authorUid = authorUid
@@ -63,6 +78,13 @@ struct Post: Identifiable, Equatable, Hashable {
         self.favoriteCount = favoriteCount
         self.isHidden = isHidden
         self.isSystemPost = isSystemPost
+        self.title = title
+        self.caption = caption
+        self.kind = kind
+        self.price = price
+        self.authorRole = authorRole
+        self.orgName = orgName
+        self.favoriteUserIds = favoriteUserIds
     }
 
     /// Builds a post from a Firestore document's data. Mirrors the web's
@@ -100,9 +122,39 @@ struct Post: Identifiable, Equatable, Hashable {
             authorEmail: FieldReader.string(data["emailAddress"]),
             favoriteCount: FieldReader.int(data["favoriteCount"]) ?? 0,
             isHidden: FieldReader.bool(data["hidden"]) || FieldReader.bool(data["suspended"]),
-            isSystemPost: isSystem
+            isSystemPost: isSystem,
+            title: FieldReader.string(data["title"]),
+            caption: FieldReader.string(data["caption"]),
+            kind: PostKind(stored: FieldReader.string(data["kind"])),
+            price: FieldReader.string(data["price"]),
+            authorRole: FieldReader.string(data["authorRole"]),
+            orgName: FieldReader.string(data["orgName"]),
+            favoriteUserIds: FieldReader.stringArray(data["favoriteUserIds"])
         )
     }
+
+    /// The big line: the composer's title, else the whole post for older ones.
+    var headline: String { title ?? content }
+
+    /// Text under the headline - only posts written with a separate title have one.
+    var body: String? { title == nil ? nil : caption }
+
+    /// No photo: the post's words are the visual (the design's quote card).
+    var isTextOnly: Bool { postImageURL == nil && linkPreview?.image == nil }
+
+    var imageURL: String? { postImageURL ?? linkPreview?.image }
+
+    /// "Jane Doe" out of "Jane Doe at AT&T" when there's no separate org field.
+    var personName: String { displayName.components(separatedBy: " at ").first ?? displayName }
+
+    /// The org shown with the author: the post's org, else " at X" in the name.
+    var orgLabel: String? {
+        if let orgName, !orgName.isEmpty { return orgName }
+        let parts = displayName.components(separatedBy: " at ")
+        return parts.count > 1 ? parts.dropFirst().joined(separator: " at ") : nil
+    }
+
+    var likeCount: Int { max(favoriteCount, favoriteUserIds.count) }
 
     /// Posts rated 4+ ("very inappropriate") are shown behind a warning, as
     /// on the web.

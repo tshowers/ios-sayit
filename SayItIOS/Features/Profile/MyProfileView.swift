@@ -13,7 +13,6 @@ struct MyProfileView: View {
     }
 
     var body: some View {
-        NavigationStack {
             List {
                 if authService.isSignedIn {
                     Section {
@@ -31,6 +30,13 @@ struct MyProfileView: View {
                     }
 
                     Section {
+                        NavigationLink(value: AppRoute.layoutPicker) {
+                            HStack {
+                                Label("Feed layout", systemImage: "rectangle.stack")
+                                Spacer()
+                                Text(model.feedLayout.name).foregroundStyle(.secondary)
+                            }
+                        }
                         NavigationLink(value: AppRoute.awards) {
                             HStack {
                                 Label("Awards", systemImage: "trophy")
@@ -73,14 +79,14 @@ struct MyProfileView: View {
                     Link("Say It on the Web", destination: model.config.webBaseURL)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground.ignoresSafeArea())
             .navigationTitle("Me")
-            .appDestinations(model)
             .alert("Something went wrong", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
             }
-        }
     }
 }
 
@@ -132,6 +138,8 @@ struct SayItProfileEditor: View {
             Section("Business") {
                 TextField("Business name", text: $draft.businessName)
                     .textContentType(.organizationName)
+                TextField("Your job title", text: $draft.role)
+                    .textContentType(.jobTitle)
                 TextField("Category", text: $draft.businessCategory)
                 TextField("Location", text: $draft.location)
                     .textContentType(.addressCityAndState)
@@ -190,6 +198,8 @@ struct SayItProfileEditor: View {
         defer { isSaving = false }
         do {
             try await model.backend.saveProfile(draft, email: model.auth.currentUser?.email)
+            // The backend endpoint predates job titles; the member writes it directly.
+            try await model.repository.updateProfile(uid: uid, fields: ["jobTitle": draft.role.trimmingCharacters(in: .whitespaces)])
             var saved = draft
             saved.websiteURL = ProfileValidation.normalizedWebsite(draft.websiteURL) ?? ""
             model.profileSaved(saved)

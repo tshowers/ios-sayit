@@ -122,6 +122,34 @@ extension BackendClient {
     }
 }
 
+extension BackendClient {
+    /// Emails the other person when they have a new message they haven't
+    /// seen (InboxRules.shouldEmail - once per burst). The link opens the
+    /// post, and the app if it's installed. Best-effort; never throws.
+    func notifyNewMessage(to email: String, from sender: String, postTitle: String, text: String, postURL: URL) async {
+        func escape(_ value: String) -> String {
+            value.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+        }
+        let subject = "\(sender) replied about \"\(postTitle.prefix(60))\""
+        let payload: [String: Any] = [
+            "to": email,
+            "subject": subject,
+            "text": "\(sender) sent you a message on Say It:\n\n\"\(text)\"\n\nReply in the Say It app: \(postURL.absoluteString)",
+            "html": "<p><b>\(escape(sender))</b> sent you a message on Say It about <b>\(escape(postTitle))</b>:</p><blockquote>\(escape(text))</blockquote><p><a href=\"\(postURL.absoluteString)\">Reply in Say It</a></p>",
+            "tenantId": config.masterTenantId,
+            "isTestSend": true,
+            "sourceSystem": "sayit-ios",
+        ]
+        guard let token = try? await idToken(), let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        var request = URLRequest(url: config.apiBaseURL.appending(path: "send-email"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = body
+        _ = try? await URLSession.shared.data(for: request)
+    }
+}
+
 enum BackendError: LocalizedError {
     case requestFailed(String)
 

@@ -59,6 +59,7 @@ struct OnboardingWizardView: View {
             .scrollDismissesKeyboard(.interactively)
             footer
         }
+        .background(Theme.ground.ignoresSafeArea())
         .animation(.easeInOut(duration: 0.2), value: step)
         .onChange(of: step) { _, newStep in
             // After the step's transition, so the new field exists to take focus.
@@ -177,6 +178,11 @@ struct OnboardingWizardView: View {
             question("What's your business called?", hint: "Shown with your name, like \"Ada at Analytical Co\".")
             textField("Business name", text: $draft.businessName, contentType: .organizationName)
 
+        case .layout:
+            question("How should posts look?", hint: "Pick the feed you like best. You can change it anytime under Me.")
+            LayoutPicker(selection: Binding(get: { draft.feedLayout }, set: { draft.feedLayout = $0; model.setFeedLayout($0) }))
+            Text(draft.feedLayout.summary).font(Theme.body(14)).foregroundStyle(Theme.neutral800)
+
         case .signIn:
             question("Last step: sign in to post it", hint: "Your post goes live as soon as you sign in.")
             preview
@@ -293,7 +299,7 @@ struct OnboardingWizardView: View {
 
     private func question(_ title: String, hint: String?) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.title.bold())
+            Text(title).font(Theme.display(30)).foregroundStyle(Theme.text)
             if let hint {
                 Text(hint).font(.subheadline).foregroundStyle(.secondary)
             }
@@ -381,12 +387,12 @@ extension OnboardingWizardView {
     }
 
     enum Step: Int, CaseIterable {
-        case intent, topic, category, post, firstName, lastName, business, signIn
+        case intent, topic, category, post, firstName, lastName, business, layout, signIn
 
         var section: Section {
             switch self {
             case .intent, .topic, .category, .post: return .post
-            case .firstName, .lastName, .business: return .aboutYou
+            case .firstName, .lastName, .business, .layout: return .aboutYou
             case .signIn: return .signIn
             }
         }

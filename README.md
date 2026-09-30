@@ -8,6 +8,30 @@ SayIt iOS is the native iPhone app for Say It, the public board where businesses
 
 The app is **free**. There is no paywall and no StoreKit, and signed-out people can browse; an account is only needed to take part.
 
+## Design
+
+The UI follows the Claude Design handoff (`corporate/design_handoff_sayit_post_feed`): the "Organic" system (cream #f5ead8, terracotta #b2622d, sage), with **Caprasimo** for display type and **Figtree** for body text. Both fonts are bundled under the SIL Open Font License, and the tokens live in `Features/Shared/Theme.swift`.
+
+- **Feed** (`FeedPagerView`): one full-screen post at a time. Swiping left or right past 60pt pages; anything shorter snaps back, and the first and last posts rubber-band. There are three layouts:
+  - **1a Overlay:** text over the photo with a side rail.
+  - **1b Card:** a floating card over the photo, topped with an org stripe.
+  - **1c Ribbon:** the org name down a side ribbon, a price sticker, and a big round "I'm interested" button.
+
+  Posts without a photo become quote cards. Each post also has a ••• button for comments, Report and Block, which the design didn't include.
+- **Layout choice:** picked in onboarding ("How should posts look?") and changeable under Me → Feed layout. It's stored as `feedLayout` on the SayIt profile. Every like, "I'm interested" and message also writes `sayit-layout-events {uid, layout, action, postId}`, so the winning layout can be chosen from real engagement.
+- **Top bar:** SayIt wordmark, For you / Orgs / Inbox, compose (+), and your avatar for Me. There's no bottom tab bar.
+- **Inbox** (`InboxView`, `ThreadView`):
+  - "I'm interested" creates or reopens `sayit-threads/{postId}_{interestedUid}`, a one-on-one conversation with the author about that post.
+  - Filters: All / I'm interested / In my posts. Unread badges.
+  - The thread screen has the post pinned at the top, quick replies and a composer.
+  - The other person gets an email on their first unread message (`/send-email`).
+  - Turning interest off keeps the conversation.
+  - Interest without a thread (older, or sent from the web) is listed and becomes a thread on the author's first reply.
+- **Orgs** (`OrgsView`, `OrgProfileView`): built from public SayIt profiles that share a business name (`OrgDirectory`), with a stable color per org. There's no follow and no "verified", since verification doesn't exist yet. Org profiles have Posts, People and About; tapping a post opens it in the full-screen pager.
+- **Posts** now have an optional title, caption, kind (`selling` / `looking-for`), price, photo (Firebase Storage `sayit/posts/{uid}/…`), `authorRole` and `orgName`. `content` is still written, so the web keeps showing new posts.
+- **Likes:** `favoriteUserIds` / `favoriteCount` on the post plus `favoritePostIds` on the profile, the same fields the web uses.
+- **Firestore rules** for threads, messages, reports and layout events live in `taliferrotech/frontend/firestore.rules`. Only a thread's two participants can read its messages.
+
 ## What the app does
 
 ### First launch: the wizard (sign in last)
@@ -18,6 +42,7 @@ Signed-out, the app opens on `OnboardingWizardView` (ONBOARDING-PROFILE-BILLING-
 - Looking for or offering, then what, then which industry. Each has a default preselected, and industry is a list that expands inline.
 - The post, pre-written from those answers and editable, with a live preview.
 - First and last name (required), then business (skippable).
+- Feed layout: 1a, 1b or 1c, shown as mini previews.
 - Sign in with Apple or Google. Signing in publishes the post (`AppModel.submitOnboardingDraftIfNeeded`):
   1. Fill blank TODD profile fields (`/onboarding/profile`).
   2. Complete the SayIt profile, unless it's already complete.

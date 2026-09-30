@@ -55,6 +55,12 @@ targets:
         # for the export compliance question.
         ITSAppUsesNonExemptEncryption: false
         LSRequiresIPhoneOS: true
+        # Caprasimo + Figtree (Resources/Fonts, SIL Open Font License).
+        UIAppFonts:
+          - Caprasimo-Regular.ttf
+          - Figtree.ttf
+        NSPhotoLibraryUsageDescription: Say It uses your photos when you add one to a post.
+        NSCameraUsageDescription: Say It uses the camera when you take a photo for a post.
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true
@@ -91,6 +97,8 @@ targets:
         product: FirebaseAuth
       - package: FirebaseiOS
         product: FirebaseFirestore
+      - package: FirebaseiOS
+        product: FirebaseStorage
       - package: TODDAuthKit
       - package: TODDProfileKit
       - package: TODDAwardsKit

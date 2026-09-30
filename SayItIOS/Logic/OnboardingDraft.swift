@@ -36,6 +36,7 @@ struct OnboardingDraft: Codable, Equatable {
     var firstName = ""
     var lastName = ""
     var businessName = ""
+    var feedLayout: FeedLayout = .default
     /// Set on reaching the sign-in step - an abandoned draft is never submitted.
     var isReadyToSubmit = false
     /// Set as each post-sign-in step succeeds, so a retry never repeats it.
@@ -44,6 +45,24 @@ struct OnboardingDraft: Codable, Equatable {
 
     init() {
         postText = suggestedPost
+    }
+
+    /// Drafts saved before a field existed still load (missing keys use defaults).
+    init(from decoder: Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        intent = try c.decodeIfPresent(Intent.self, forKey: .intent) ?? intent
+        topic = try c.decodeIfPresent(String.self, forKey: .topic) ?? topic
+        category = try c.decodeIfPresent(String.self, forKey: .category) ?? category
+        postText = try c.decodeIfPresent(String.self, forKey: .postText) ?? postText
+        postTextEdited = try c.decodeIfPresent(Bool.self, forKey: .postTextEdited) ?? false
+        firstName = try c.decodeIfPresent(String.self, forKey: .firstName) ?? ""
+        lastName = try c.decodeIfPresent(String.self, forKey: .lastName) ?? ""
+        businessName = try c.decodeIfPresent(String.self, forKey: .businessName) ?? ""
+        feedLayout = try c.decodeIfPresent(FeedLayout.self, forKey: .feedLayout) ?? .default
+        isReadyToSubmit = try c.decodeIfPresent(Bool.self, forKey: .isReadyToSubmit) ?? false
+        profileSaved = try c.decodeIfPresent(Bool.self, forKey: .profileSaved) ?? false
+        publishedPostId = try c.decodeIfPresent(String.self, forKey: .publishedPostId)
     }
 
     var hasCustomTopic: Bool { !intent.topicOptions.contains(topic) }

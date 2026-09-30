@@ -17,6 +17,12 @@ struct SayItProfile: Equatable {
     var handle: String?
     var photoURL: String?
     var blockedUids: [String] = []
+    /// Job title shown as "{Role} at {Org}". Stored as `jobTitle` - never
+    /// `role`, which elsewhere in TODD is the permission level.
+    var role = ""
+    var feedLayout: FeedLayout?
+    /// Liked posts - the same field the web board keeps favorites in.
+    var favoritePostIds: [String] = []
 
     init(uid: String) {
         self.uid = uid
@@ -35,6 +41,9 @@ struct SayItProfile: Equatable {
         handle = FieldReader.string(data["handle"])
         photoURL = FieldReader.string(data["photoURL"])
         blockedUids = FieldReader.stringArray(data["blockedUids"])
+        role = FieldReader.string(data["jobTitle"]) ?? ""
+        feedLayout = FieldReader.string(data["feedLayout"]).flatMap(FeedLayout.init(rawValue:))
+        favoritePostIds = FieldReader.stringArray(data["favoritePostIds"])
     }
 
     var isComplete: Bool { ProfileValidation.validate(self) == nil }

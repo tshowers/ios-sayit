@@ -20,20 +20,7 @@ struct RootView: View {
                 // First launch signed out: write a first post, sign in last.
                 OnboardingWizardView(model: model)
             } else {
-                TabView(selection: $model.selectedTab) {
-                    FeedView(model: model)
-                        .tabItem { Label("Feed", systemImage: "bubble.left.and.bubble.right") }
-                        .tag(AppTab.feed)
-
-                    InterestInboxView(model: model)
-                        .tabItem { Label("Interest", systemImage: "tray") }
-                        .badge(model.unreadInterestCount)
-                        .tag(AppTab.interest)
-
-                    MyProfileView(model: model)
-                        .tabItem { Label("Me", systemImage: "person.crop.circle") }
-                        .tag(AppTab.me)
-                }
+                MainView(model: model)
                 .overlay(alignment: .top) {
                     if model.isPublishingDraft {
                         Label("Posting your first post…", systemImage: "paperplane.fill")
@@ -74,6 +61,19 @@ struct AppDestination: View {
             PostDetailView(model: model, postId: id)
         case .compose:
             ComposerView(model: model, initialCategory: "all")
+        case .feedAt(let posts, let index):
+            FeedPagerView(model: model, posts: posts, startIndex: index, layout: model.feedLayout, topInset: 60)
+                .ignoresSafeArea()
+                .toolbarBackground(.hidden, for: .navigationBar)
+                .toolbarColorScheme(.dark, for: .navigationBar)
+        case .thread(let id):
+            ThreadView(model: model, threadId: id)
+        case .org(let org):
+            OrgProfileView(model: model, org: org)
+        case .me:
+            MyProfileView(model: model)
+        case .layoutPicker:
+            LayoutSettingView(model: model)
         case .report(let post):
             ReportView(model: model, post: post)
         case .signIn:
