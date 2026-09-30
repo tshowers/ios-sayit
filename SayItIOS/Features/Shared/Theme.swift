@@ -19,6 +19,10 @@ enum Theme {
 
     // Ground and text (adaptive)
     static let ground = adaptive(0xF5EAD8, 0x1B1916)
+    /// Behind posts: the cream ground in light mode, black in dark mode.
+    static let stage = adaptive(0xF5EAD8, 0x0B0A09)
+    /// The 1b card sitting on the stage.
+    static let card = adaptive(0xFBF4E8, 0x221F1B)
     static let surface = adaptive(0xEBDDC5, 0x2B2723)
     static let text = adaptive(0x201E1D, 0xF3EBDD)
     static let divider = adaptive(0x201E1D, 0xF3EBDD, 0.16)

@@ -18,6 +18,11 @@ The UI follows the Claude Design handoff (`corporate/design_handoff_sayit_post_f
   - **1c Ribbon:** the org name down a side ribbon, a price sticker, and a big round "I'm interested" button.
 
   Posts without a photo become quote cards. Each post also has a ••• button for comments, Report and Block, which the design didn't include.
+- **Post stage** (`PostStage`, all three layouts):
+  - A post's photo fills the top 60% of the screen and fades into the stage: black in dark mode, the cream ground in light. The photo is never hidden behind the post.
+  - iPad portrait: the post starts halfway down. iPhone: the post's bottom sits 20% up from the bottom and grows upward. iPad landscape: photo on the left, post on the right.
+  - Posts without a photo get an org-colored band behind the top bar instead of an empty photo area.
+  - The whole post always shows, and it scrolls if it's taller than its space.
 - **Every post follows the prototypes:** the photo area, or the design's striped placeholder in the org's tone when there's no photo, with the headline, caption, category and **AI summary** (moderation's `ratingExplanation`, the web's "Content Description").
 - **Light and dark:** every screen follows the system appearance. `Theme` pairs each handoff color with a dark counterpart from the same warm ramp.
 - **Sizing:** type and controls scale with the device (`Theme.scale`, up to 1.35× on iPad), and each post's content sits in a 600pt column on wide screens.

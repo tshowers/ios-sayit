@@ -22,7 +22,7 @@ struct FeedPagerView: View {
         GeometryReader { geometry in
             let width = geometry.size.width
             ZStack {
-                Theme.media.ignoresSafeArea()
+                Theme.stage.ignoresSafeArea()
                 if posts.isEmpty {
                     emptyState
                 } else {
@@ -294,22 +294,175 @@ func relativeTime(_ date: Date?) -> String {
     return date.formatted(.dateTime.month(.abbreviated).day())
 }
 
-// MARK: - Shared post pieces
+// MARK: - Post stage
 
-/// The photo, or the design's striped placeholder in the org's tone when
-/// the post has none - every layout starts from this, like the prototypes.
-struct PostBackdrop: View {
+/// Where a post's photo and words go, for every layout (product owner's
+/// spec, 2026-09-30):
+/// - The photo fills the top 60% of the screen and fades into the stage
+///   color (black in dark mode, the design's cream ground in light), so
+///   the photo is never hidden behind the post.
+/// - iPad portrait: the post starts halfway down. iPhone: the post's bottom
+///   sits 20% up from the bottom and grows upward.
+/// - iPad landscape: photo on the left, post on the right.
+/// - No photo: a thin org-colored band behind the top bar, post centered
+///   (iPad) or 20% up from the bottom (iPhone) - no empty photo area.
+/// - The whole post always shows; if it's taller than its space it scrolls.
+struct PostStage<Content: View>: View {
     let post: Post
+    let actions: PostActions
+    var topInset: CGFloat
+    /// 1c runs the org ribbon down the leading edge.
+    var ribbon = false
+    @ViewBuilder var content: () -> Content
+
+    private let s = Theme.scale
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    private var ribbonWidth: CGFloat { ribbon ? 34 * s : 0 }
+
     var body: some View {
-        PostMedia(url: post.imageURL, tint: Theme.orgColor(post.orgLabel ?? post.category))
+        GeometryReader { geo in
+            let size = geo.size
+            let landscape = isPad && size.width > size.height * 1.15
+            ZStack(alignment: .topLeading) {
+                Theme.stage
+                if landscape { landscapeStage(size) } else { portraitStage(size) }
+                if ribbon { ribbonStrip.frame(width: ribbonWidth, height: size.height) }
+                HStack { Spacer(); PostMoreButton(actions: actions) }
+                    .padding(.top, topInset + 12).padding(.trailing, 14)
+            }
+            .frame(width: size.width, height: size.height)
+            .clipped()
+        }
+    }
+
+    // MARK: Portrait
+
+    @ViewBuilder
+    private func portraitStage(_ size: CGSize) -> some View {
+        let h = size.height
+        if post.imageURL != nil {
+            photo(width: size.width, height: h * 0.6, fadeTo: .bottom)
+        } else {
+            band(width: size.width)
+        }
+
+        let words = VStack(spacing: 0) { content() }
+            .padding(.leading, ribbonWidth)
+            .postColumn()
+
+        if isPad && post.imageURL != nil {
+            // Starts halfway down; scrolls if it runs past the bottom.
+            VStack(spacing: 0) {
+                Color.clear.frame(height: h * 0.5)
+                ScrollView(showsIndicators: false) { words.padding(.bottom, 24) }
+                    .scrollBounceBehavior(.basedOnSize)
+            }
+        } else if isPad {
+            VStack(spacing: 0) {
+                Color.clear.frame(height: topInset + 56)
+                Spacer(minLength: 0)
+                fitting(words)
+                Spacer(minLength: 0)
+            }
+        } else {
+            // Bottom edge 20% up from the bottom; grows upward.
+            VStack(spacing: 0) {
+                Color.clear.frame(height: topInset + 56)
+                Spacer(minLength: 0)
+                fitting(words)
+                Color.clear.frame(height: h * 0.2)
+            }
+        }
+    }
+
+    // MARK: Landscape (iPad)
+
+    @ViewBuilder
+    private func landscapeStage(_ size: CGSize) -> some View {
+        let words = VStack(spacing: 0) { content() }
+        if post.imageURL != nil {
+            HStack(spacing: 0) {
+                photo(width: size.width * 0.56, height: size.height, fadeTo: .trailing)
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: topInset + 40)
+                    Spacer(minLength: 0)
+                    fitting(words)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: size.width * 0.44)
+            }
+        } else {
+            band(width: size.width)
+            VStack(spacing: 0) {
+                Color.clear.frame(height: topInset + 56)
+                Spacer(minLength: 0)
+                fitting(words.padding(.leading, ribbonWidth).postColumn())
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    // MARK: Pieces
+
+    /// Shows the post as is when it fits, otherwise lets it scroll.
+    private func fitting<V: View>(_ view: V) -> some View {
+        ViewThatFits(in: .vertical) {
+            view
+            ScrollView(showsIndicators: false) { view }.scrollBounceBehavior(.basedOnSize)
+        }
+    }
+
+    private func photo(width: CGFloat, height: CGFloat, fadeTo edge: Edge) -> some View {
+        ZStack(alignment: .top) {
+            PostMedia(url: post.imageURL, tint: Theme.orgColor(post.orgLabel))
+                .frame(width: width, height: height)
+                .clipped()
+            // Clear at the top, into the stage color at the photo's far edge.
+            LinearGradient(stops: [.init(color: Theme.stage.opacity(0), location: 0), .init(color: Theme.stage.opacity(0), location: 0.45),
+                                   .init(color: Theme.stage, location: 1)],
+                           startPoint: edge == .bottom ? .top : .leading, endPoint: edge == .bottom ? .bottom : .trailing)
+                .frame(width: width, height: height)
+            // Keeps the cream top bar readable over bright photos.
+            LinearGradient(colors: [Theme.scrim.opacity(0.55), Theme.scrim.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .frame(width: width, height: topInset + 64)
+        }
+        .frame(width: width, height: height, alignment: .top)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// No photo: the org's color and stripes behind the top bar only.
+    private func band(width: CGFloat) -> some View {
+        ZStack {
+            Theme.orgColor(post.orgLabel)
+            Stripes(color: Theme.scrim.opacity(0.18))
+        }
+        .frame(width: width, height: topInset + 44)
+        .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .clear, location: 1)],
+                             startPoint: .top, endPoint: .bottom))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var ribbonStrip: some View {
+        Theme.orgColor(post.orgLabel)
+            .overlay {
+                Text("\((post.orgLabel ?? "Say It").uppercased())\(post.kind.map { " · \($0.label.uppercased())" } ?? "")")
+                    .font(Theme.body(11, .bold)).tracking(2)
+                    .foregroundStyle(Theme.cream)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: ribbonWidth)
+            }
+            .clipped()
+            .accessibilityHidden(true)
     }
 }
 
 /// Category and the AI moderation summary (the web's "Content Description").
 struct PostMetaRow: View {
     let post: Post
-    /// True over photos (cream text), false on the light/dark card.
-    var onMedia: Bool
 
     var body: some View {
         let hasCategory = post.category.lowercased() != "all" && !post.category.isEmpty
@@ -319,21 +472,21 @@ struct PostMetaRow: View {
                 if hasCategory {
                     Label(PostCategory.label(for: post.category), systemImage: "folder")
                         .font(Theme.body(11.5, .semibold))
-                        .foregroundStyle(onMedia ? Theme.cream.opacity(0.9) : Theme.neutral800)
-                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(Theme.neutral800)
                         .accessibilityLabel("Category: \(PostCategory.label(for: post.category))")
                 }
                 if let summary {
                     HStack(alignment: .top, spacing: 5) {
                         Image(systemName: "sparkles")
-                        Text(summary).lineLimit(2)
+                        Text(summary).fixedSize(horizontal: false, vertical: true)
                     }
                     .font(Theme.body(11.5).italic())
-                    .foregroundStyle(onMedia ? Theme.neutral300 : Theme.neutral700)
+                    .foregroundStyle(Theme.neutral700)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("AI summary: \(summary)")
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
@@ -346,6 +499,52 @@ extension View {
     }
 }
 
+private struct AuthorLine: View {
+    let post: Post
+    var avatar: CGFloat
+    var badge: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RingAvatar(name: post.personName, photoURL: post.photoURL, size: avatar, ring: badge ? Theme.orgColor(post.orgLabel) : nil)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(post.personName).font(Theme.body(15, .bold)).foregroundStyle(Theme.text)
+                    if badge, let org = post.orgLabel {
+                        Text("at \(org)").font(Theme.body(11, .semibold)).foregroundStyle(Theme.cream)
+                            .padding(.horizontal, 9).frame(height: 20 * Theme.scale)
+                            .background(Theme.orgColor(org), in: Capsule())
+                            .lineLimit(1)
+                    }
+                }
+                let role = [post.authorRole, relativeTime(post.timestamp)].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
+                if badge {
+                    Text(role).font(Theme.body(12)).foregroundStyle(Theme.neutral700)
+                } else if let org = post.orgLabel {
+                    (Text(post.authorRole.map { "\($0) at " } ?? "at ") + Text(org).underline())
+                        .font(Theme.body(12)).foregroundStyle(Theme.neutral700).lineLimit(1)
+                }
+            }
+        }
+    }
+}
+
+private struct HeadlineAndBody: View {
+    let post: Post
+    var size: CGFloat
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8 * Theme.scale) {
+            Text(post.headline).font(Theme.display(size)).foregroundStyle(Theme.text)
+                .fixedSize(horizontal: false, vertical: true)
+            if let text = post.body {
+                Text(text).font(Theme.body(14.5)).foregroundStyle(Theme.neutral800)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - 1a Overlay + rail
 
 struct OverlayPostPage: View {
@@ -355,70 +554,27 @@ struct OverlayPostPage: View {
     private let s = Theme.scale
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            PostBackdrop(post: post)
-            LinearGradient(stops: [.init(color: Theme.scrim.opacity(0.94), location: 0), .init(color: Theme.scrim.opacity(0.7), location: 0.45), .init(color: .clear, location: 1)],
-                           startPoint: .bottom, endPoint: .top)
-                .containerRelativeFrame(.vertical) { height, _ in height * 0.62 }
-                .frame(maxHeight: .infinity, alignment: .bottom)
-                .allowsHitTesting(false)
-
-            VStack {
-                HStack { Spacer(); PostMoreButton(actions: actions) }
-                    .padding(.top, topInset + 16).padding(.trailing, 14)
-                Spacer()
-            }
-
+        PostStage(post: post, actions: actions, topInset: topInset) {
             VStack(spacing: 16 * s) {
                 HStack(alignment: .bottom, spacing: 12) {
-                    // Author block
-                    VStack(alignment: .leading, spacing: 8 * s) {
-                        Button(action: actions.openOrg) {
-                            HStack(spacing: 10) {
-                                RingAvatar(name: post.personName, photoURL: post.photoURL, size: 42 * s, ring: Theme.orgColor(post.orgLabel))
-                                VStack(alignment: .leading, spacing: 3) {
-                                    HStack(spacing: 6) {
-                                        Text(post.personName).font(Theme.body(15, .bold)).foregroundStyle(Theme.cream)
-                                        if let org = post.orgLabel {
-                                            Text("at \(org)").font(Theme.body(11, .semibold)).foregroundStyle(Theme.cream)
-                                                .padding(.horizontal, 9).frame(height: 20 * s)
-                                                .background(Theme.orgColor(org), in: Capsule())
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                    Text([post.authorRole, relativeTime(post.timestamp)].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
-                                        .font(Theme.body(12)).foregroundStyle(Theme.neutral300)
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        KindPriceRow(post: post)
-                        Group {
-                            Text(post.headline).font(Theme.display(21)).foregroundStyle(Theme.cream).lineLimit(5)
-                            if let body = post.body {
-                                Text(body).font(Theme.body(13.5)).foregroundStyle(Theme.hex(0xEEE7DB)).lineLimit(4)
-                            }
-                        }
-                        .onTapGesture(perform: actions.openPost)
-                        PostMetaRow(post: post, onMedia: true)
+                    VStack(alignment: .leading, spacing: 10 * s) {
+                        Button(action: actions.openOrg) { AuthorLine(post: post, avatar: 42 * s, badge: true) }
+                            .buttonStyle(.plain)
+                        KindPriceRow(post: post, priceColor: Theme.text)
+                        HeadlineAndBody(post: post, size: 22).onTapGesture(perform: actions.openPost)
+                        PostMetaRow(post: post)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // Right rail
                     VStack(spacing: 16 * s) {
                         railButton(systemImage: actions.isLiked ? "heart.fill" : "heart", label: Formatting.count(actions.likeCount),
-                                   tint: actions.isLiked ? Theme.accent400 : Theme.cream, action: actions.like)
+                                   tint: actions.isLiked ? Theme.accent400 : Theme.text, action: actions.like)
                             .accessibilityLabel(actions.isLiked ? "Unlike" : "Like")
-                        ShareLink(item: actions.shareURL) {
-                            railLabel(systemImage: "paperplane", label: "Share", tint: Theme.cream)
-                        }
+                        ShareLink(item: actions.shareURL) { railLabel(systemImage: "paperplane", label: "Share", tint: Theme.text) }
                     }
                 }
                 InterestedButton(actions: actions, height: 56 * s)
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 20)
-            .postColumn()
+            .padding(.vertical, 12)
         }
     }
 
@@ -433,8 +589,8 @@ struct OverlayPostPage: View {
                 .font(.system(size: 20 * s, weight: .bold))
                 .foregroundStyle(tint)
                 .frame(width: 46 * s, height: 46 * s)
-                .background(Theme.cream.opacity(0.16), in: Circle())
-            Text(label).font(Theme.body(12, .semibold)).foregroundStyle(Theme.cream)
+                .background(Theme.text.opacity(0.1), in: Circle())
+            Text(label).font(Theme.body(12, .semibold)).foregroundStyle(Theme.text)
         }
     }
 }
@@ -448,16 +604,7 @@ struct SheetPostPage: View {
     private let s = Theme.scale
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            PostBackdrop(post: post)
-
-            VStack {
-                HStack { Spacer(); PostMoreButton(actions: actions) }
-                    .padding(.top, topInset + 16).padding(.trailing, 14)
-                Spacer()
-            }
-
-            // Sheet
+        PostStage(post: post, actions: actions, topInset: topInset) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Text((post.orgLabel ?? "Say It").uppercased())
@@ -470,33 +617,16 @@ struct SheetPostPage: View {
                 .frame(height: 30 * s)
                 .background(Theme.orgColor(post.orgLabel))
 
-                VStack(alignment: .leading, spacing: 10 * s) {
+                VStack(alignment: .leading, spacing: 12 * s) {
                     HStack(alignment: .top) {
-                        Button(action: actions.openOrg) {
-                            HStack(spacing: 10) {
-                                RingAvatar(name: post.personName, photoURL: post.photoURL, size: 38 * s)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(post.personName).font(Theme.body(15, .bold)).foregroundStyle(Theme.text)
-                                    if let org = post.orgLabel {
-                                        (Text(post.authorRole.map { "\($0) at " } ?? "at ") + Text(org).underline())
-                                            .font(Theme.body(12)).foregroundStyle(Theme.neutral700).lineLimit(1)
-                                    }
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
+                        Button(action: actions.openOrg) { AuthorLine(post: post, avatar: 38 * s, badge: false) }
+                            .buttonStyle(.plain)
                         Spacer()
                         Text(relativeTime(post.timestamp)).font(Theme.body(12)).foregroundStyle(Theme.neutral700)
                     }
-                    Group {
-                        Text(post.headline).font(Theme.display(20)).foregroundStyle(Theme.text).lineLimit(4)
-                        if let body = post.body {
-                            Text(body).font(Theme.body(13.5)).foregroundStyle(Theme.neutral800).lineLimit(4)
-                        }
-                    }
-                    .onTapGesture(perform: actions.openPost)
+                    HeadlineAndBody(post: post, size: 21).onTapGesture(perform: actions.openPost)
                     KindPriceRow(post: post, priceColor: Theme.text, priceSize: 15, tagFill: Theme.sage100, tagInk: Theme.sage800)
-                    PostMetaRow(post: post, onMedia: false)
+                    PostMetaRow(post: post)
                     HStack(spacing: 8) {
                         Button(action: actions.like) {
                             HStack(spacing: 6) {
@@ -519,12 +649,11 @@ struct SheetPostPage: View {
                 }
                 .padding(.top, 14).padding(.horizontal, 16).padding(.bottom, 16)
             }
-            .background(Theme.ground)
+            .background(Theme.card)
             .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
             .shadow(color: Theme.neutral900.opacity(0.22), radius: 16, y: 12)
             .padding(.horizontal, 10)
-            .padding(.bottom, 10)
-            .postColumn()
+            .padding(.vertical, 8)
         }
     }
 }
@@ -538,126 +667,80 @@ struct RibbonPostPage: View {
     private let s = Theme.scale
 
     var body: some View {
-        GeometryReader { geometry in
-            page(width: geometry.size.width)
+        PostStage(post: post, actions: actions, topInset: topInset, ribbon: true) {
+            VStack(alignment: .leading, spacing: 12 * s) {
+                HStack(alignment: .top, spacing: 12) {
+                    Text(post.headline)
+                        .font(Theme.display(28))
+                        .foregroundStyle(Theme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onTapGesture(perform: actions.openPost)
+                    Spacer(minLength: 0)
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Text(actions.counter).font(Theme.body(12, .bold)).foregroundStyle(Theme.neutral700)
+                        sticker
+                    }
+                }
+                Button(action: actions.openOrg) {
+                    HStack(spacing: 10) {
+                        RingAvatar(name: post.personName, photoURL: post.photoURL, size: 36 * s)
+                        VStack(alignment: .leading, spacing: 1) {
+                            (Text(post.personName).font(Theme.body(15, .bold))
+                             + Text(post.orgLabel.map { " at \($0)" } ?? "").font(Theme.body(15, .semibold)).foregroundColor(Theme.neutral700))
+                                .foregroundStyle(Theme.text)
+                            Text([post.authorRole, relativeTime(post.timestamp)].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
+                                .font(Theme.body(12)).foregroundStyle(Theme.neutral700)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                if let text = post.body {
+                    Text(text).font(Theme.body(14.5)).foregroundStyle(Theme.neutral800).fixedSize(horizontal: false, vertical: true)
+                }
+                PostMetaRow(post: post)
+                HStack(alignment: .center) {
+                    Button(action: actions.like) {
+                        HStack(spacing: 6) {
+                            Image(systemName: actions.isLiked ? "heart.fill" : "heart")
+                                .foregroundStyle(actions.isLiked ? Theme.accent400 : Theme.text)
+                            Text(Formatting.count(actions.likeCount)).font(Theme.body(13, .bold)).foregroundStyle(Theme.text)
+                        }
+                        .padding(.horizontal, 14).frame(height: 46 * s)
+                        .background(Theme.text.opacity(0.1), in: Capsule())
+                    }
+                    .buttonStyle(PressScaleStyle())
+                    .accessibilityLabel(actions.isLiked ? "Unlike" : "Like")
+                    ShareLink(item: actions.shareURL) {
+                        Image(systemName: "paperplane").foregroundStyle(Theme.text)
+                            .frame(width: 46 * s, height: 46 * s).background(Theme.text.opacity(0.1), in: Circle())
+                    }
+                    .accessibilityLabel("Share")
+                    Spacer()
+                    roundInterested
+                }
+            }
+            .padding(.leading, 20)
+            .padding(.trailing, 16)
+            .padding(.vertical, 12)
         }
     }
 
-    private func page(width: CGFloat) -> some View {
-        HStack(spacing: 0) {
-            // Org ribbon, read bottom to top
-            Theme.orgColor(post.orgLabel)
-                .frame(width: 34 * s)
-                .overlay {
-                    Text("\((post.orgLabel ?? "Say It").uppercased())\(post.kind.map { " · \($0.label.uppercased())" } ?? "")")
-                        .font(Theme.body(11, .bold)).tracking(2)
-                        .foregroundStyle(Theme.cream)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: 34 * s)
-                }
-                .clipped()
-
-            ZStack(alignment: .topLeading) {
-                PostBackdrop(post: post)
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [Theme.scrim.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom)
-                        .containerRelativeFrame(.vertical) { h, _ in h * 0.46 }
-                    Spacer()
-                    LinearGradient(colors: [.clear, Theme.scrim.opacity(0.9)], startPoint: .top, endPoint: .bottom)
-                        .containerRelativeFrame(.vertical) { h, _ in h * 0.5 }
-                }
-                .allowsHitTesting(false)
-
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(alignment: .top) {
-                        Text(post.headline)
-                            .font(Theme.display(30))
-                            .foregroundStyle(Theme.cream)
-                            .minimumScaleFactor(0.6)
-                            .lineLimit(5)
-                            .onTapGesture(perform: actions.openPost)
-                        Spacer(minLength: 8)
-                        VStack(alignment: .trailing, spacing: 10) {
-                            Text(actions.counter).font(Theme.body(12, .bold)).foregroundStyle(Theme.cream.opacity(0.85))
-                            PostMoreButton(actions: actions)
-                        }
-                    }
-                    .padding(.top, topInset + 24)
-
-                    Spacer()
-
-                    VStack(alignment: .leading, spacing: 8 * s) {
-                        Button(action: actions.openOrg) {
-                            HStack(spacing: 10) {
-                                RingAvatar(name: post.personName, photoURL: post.photoURL, size: 36 * s)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    (Text(post.personName).font(Theme.body(15, .bold))
-                                     + Text(post.orgLabel.map { " at \($0)" } ?? "").font(Theme.body(15, .semibold)).foregroundColor(Theme.cream.opacity(0.8)))
-                                        .foregroundStyle(Theme.cream).lineLimit(1)
-                                    Text([post.authorRole, relativeTime(post.timestamp)].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
-                                        .font(Theme.body(12)).foregroundStyle(Theme.neutral300)
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        if let body = post.body {
-                            Text(body).font(Theme.body(13.5)).foregroundStyle(Theme.hex(0xEEE7DB)).lineLimit(3)
-                        }
-                        PostMetaRow(post: post, onMedia: true)
-                    }
-                    .padding(.trailing, post.kind == nil ? 0 : 20)
-                    .padding(.bottom, 16 * s)
-
-                    // Bottom row
-                    HStack(alignment: .bottom) {
-                        Button(action: actions.like) {
-                            HStack(spacing: 6) {
-                                Image(systemName: actions.isLiked ? "heart.fill" : "heart")
-                                    .foregroundStyle(actions.isLiked ? Theme.accent400 : Theme.cream)
-                                Text(Formatting.count(actions.likeCount)).font(Theme.body(13, .bold)).foregroundStyle(Theme.cream)
-                            }
-                            .padding(.horizontal, 14).frame(height: 46 * s)
-                            .background(Theme.cream.opacity(0.18), in: Capsule())
-                        }
-                        .buttonStyle(PressScaleStyle())
-                        .accessibilityLabel(actions.isLiked ? "Unlike" : "Like")
-                        ShareLink(item: actions.shareURL) {
-                            Image(systemName: "paperplane").foregroundStyle(Theme.cream)
-                                .frame(width: 46 * s, height: 46 * s).background(Theme.cream.opacity(0.18), in: Circle())
-                        }
-                        .accessibilityLabel("Share")
-                        Spacer()
-                        roundInterested
-                    }
-                    .padding(.bottom, 20)
-                }
-                .padding(.leading, 20)
-                .padding(.trailing, 16)
-                .postColumn(alignment: .leading)
-
-                // Price sticker
-                if let kind = post.kind {
-                    VStack(spacing: 2) {
-                        Text(kind.label.uppercased()).font(Theme.body(10, .bold))
-                        if let price = post.price, !price.isEmpty {
-                            Text(price).font(Theme.display(18)).multilineTextAlignment(.center).minimumScaleFactor(0.6)
-                        }
-                    }
-                    .foregroundStyle(Theme.sage900)
-                    .padding(10)
-                    .frame(width: 104 * s, height: 104 * s)
-                    .background(Theme.sage300, in: Circle())
-                    .shadow(color: Theme.neutral900.opacity(0.16), radius: 5, y: 3)
-                    .rotationEffect(.degrees(-9))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                    .padding(.trailing, 18)
-                    .accessibilityElement(children: .combine)
+    @ViewBuilder
+    private var sticker: some View {
+        if let kind = post.kind {
+            VStack(spacing: 2) {
+                Text(kind.label.uppercased()).font(Theme.body(10, .bold))
+                if let price = post.price, !price.isEmpty {
+                    Text(price).font(Theme.display(17)).multilineTextAlignment(.center).minimumScaleFactor(0.6)
                 }
             }
-            .frame(width: max(width - 34 * s, 0))
-            .clipped()
+            .foregroundStyle(Theme.sage900)
+            .padding(10)
+            .frame(width: 96 * s, height: 96 * s)
+            .background(Theme.sage300, in: Circle())
+            .shadow(color: Theme.neutral900.opacity(0.16), radius: 5, y: 3)
+            .rotationEffect(.degrees(-9))
+            .accessibilityElement(children: .combine)
         }
     }
 

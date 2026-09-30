@@ -110,6 +110,26 @@ final class SignedOutSmokeTests: XCTestCase {
         }
     }
 
+    /// iPad landscape used to push the post off screen entirely.
+    func testWholePostIsVisibleInEveryOrientation() throws {
+        launch(browsing: true, layout: "1b")
+        XCTAssertTrue(app.staticTexts["SayIt"].waitForExistence(timeout: 10))
+        let orientations: [UIDeviceOrientation] = UIDevice.current.userInterfaceIdiom == .pad ? [.portrait, .landscapeLeft] : [.portrait]
+        for orientation in orientations {
+            XCUIDevice.shared.orientation = orientation
+            // Let the rotation finish and the feed re-lay out before checking.
+            Thread.sleep(forTimeInterval: 2)
+            let visible = app.buttons.matching(identifier: "I'm interested").allElementsBoundByIndex.first { $0.exists && $0.isHittable }
+                ?? app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Like'")).allElementsBoundByIndex.first { $0.exists && $0.isHittable }
+            XCTAssertNotNil(visible, "The post's actions should be on screen in \(orientation.rawValue)")
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "feed-\(orientation.rawValue)"
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+        XCUIDevice.shared.orientation = .portrait
+    }
+
     func testNewPostWhileBrowsingGoesBackToTheWizard() {
         launch(browsing: true)
         XCTAssertTrue(app.buttons["New post"].waitForExistence(timeout: 10))
