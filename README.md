@@ -27,7 +27,12 @@ The UI follows the Claude Design handoff (`corporate/design_handoff_sayit_post_f
 - **Light and dark:** every screen follows the system appearance. `Theme` pairs each handoff color with a dark counterpart from the same warm ramp.
 - **Sizing:** type and controls scale with the device (`Theme.scale`, up to 1.35× on iPad), and each post's content sits in a 600pt column on wide screens.
 - **Layout choice:** picked in onboarding ("How should posts look?") and changeable under Me → Feed layout. It's stored as `feedLayout` on the SayIt profile. Every like, "I'm interested" and message also writes `sayit-layout-events {uid, layout, action, postId}`, so the winning layout can be chosen from real engagement.
-- **Top bar:** SayIt wordmark, For you / Orgs / Inbox, compose (+), and your avatar for Me. There's no bottom tab bar.
+- **Top bar:** SayIt wordmark, For you / Orgs / Inbox, search, compose (+), and your avatar for Me. There's no bottom tab bar. The bar tightens on narrow phones rather than overflowing.
+- **Search** (`SearchView`):
+  - Every word must match, in any order, across the post text, headline, caption, author, org, job title, category and price.
+  - Chips filter by Selling / Looking for and by the industries in the feed.
+  - Tapping a result opens the full-screen feed there, so you can swipe through the rest of the results.
+  - It covers the posts the feed has loaded (the newest 200).
 - **Inbox** (`InboxView`, `ThreadView`):
   - "I'm interested" creates or reopens `sayit-threads/{postId}_{interestedUid}`, a one-on-one conversation with the author about that post.
   - Filters: All / I'm interested / In my posts. Unread badges.

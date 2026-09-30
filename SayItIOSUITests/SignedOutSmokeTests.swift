@@ -130,6 +130,28 @@ final class SignedOutSmokeTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
+    func testSearchFindsPostsAndOpensOneInTheFeed() {
+        launch(browsing: true, layout: "1c")
+        XCTAssertTrue(app.buttons["Search posts"].waitForExistence(timeout: 10))
+        app.buttons["Search posts"].tap()
+
+        let field = app.textFields["search-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Everything"].exists)
+        XCTAssertTrue(app.buttons["Selling"].exists)
+
+        field.typeText("zzqxnothingmatches")
+        XCTAssertTrue(app.staticTexts["No posts match."].waitForExistence(timeout: 5))
+
+        app.buttons["Clear search"].tap()
+        let firstResult = app.scrollViews.buttons.element(boundBy: 0)
+        let results = app.buttons.matching(NSPredicate(format: "label CONTAINS ' · '"))
+        XCTAssertTrue(results.firstMatch.waitForExistence(timeout: 10) || firstResult.exists, "Recent posts are listed before searching")
+        results.firstMatch.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '1 / '")).firstMatch.waitForExistence(timeout: 5),
+                      "A result opens in the full-screen feed")
+    }
+
     func testNewPostWhileBrowsingGoesBackToTheWizard() {
         launch(browsing: true)
         XCTAssertTrue(app.buttons["New post"].waitForExistence(timeout: 10))

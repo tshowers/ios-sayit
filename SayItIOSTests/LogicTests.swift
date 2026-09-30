@@ -22,6 +22,26 @@ final class FeedFilterTests: XCTestCase {
         XCTAssertEqual(FeedFilter(category: "all").apply(to: posts).count, 3)
     }
 
+    func testSearchNeedsEveryWordInAnyOrderAcrossFields() {
+        let rich = [
+            Post(id: "a", displayName: "Jane Doe", content: "Free clinic", category: "retail", title: "Phone repair clinic",
+                 caption: "Dallas store, Saturday", kind: .selling, price: "$18 each", authorRole: "Community Manager", orgName: "AT&T"),
+            Post(id: "b", displayName: "Marcus", content: "Figs", category: "agriculture", kind: .lookingFor, orgName: "Greenleaf"),
+        ]
+        XCTAssertEqual(FeedFilter(searchText: "dallas repair").apply(to: rich).map(\.id), ["a"])
+        XCTAssertEqual(FeedFilter(searchText: "at&t").apply(to: rich).map(\.id), ["a"])
+        XCTAssertEqual(FeedFilter(searchText: "community manager").apply(to: rich).map(\.id), ["a"])
+        XCTAssertEqual(FeedFilter(searchText: "$18").apply(to: rich).map(\.id), ["a"])
+        XCTAssertEqual(FeedFilter(searchText: "greenleaf, figs").apply(to: rich).map(\.id), ["b"])
+        XCTAssertEqual(FeedFilter(searchText: "dallas figs").apply(to: rich).map(\.id), [])
+        XCTAssertEqual(FeedFilter(kind: .lookingFor).apply(to: rich).map(\.id), ["b"])
+    }
+
+    func testCategoriesInPostsMostCommonFirst() {
+        let posts = [Post(id: "1", category: "retail"), Post(id: "2", category: "Retail"), Post(id: "3", category: "energy"), Post(id: "4", category: "all")]
+        XCTAssertEqual(FeedFilter.categories(in: posts), ["retail", "energy"])
+    }
+
     func testSearchMatchesContentAndName() {
         XCTAssertEqual(FeedFilter(searchText: " PLUMBER ").apply(to: posts).map(\.id), ["1"])
         XCTAssertEqual(FeedFilter(searchText: "bo").apply(to: posts).map(\.id), ["2"])

@@ -47,22 +47,41 @@ struct MainView: View {
     private var onDark: Bool { model.selectedTab == .feed }
     private var ink: Color { onDark ? Theme.cream : Theme.text }
 
+    /// Full size where it fits; tighter spacing and a smaller wordmark on
+    /// narrow phones rather than overflowing.
     private var topBar: some View {
-        HStack(spacing: 14) {
-            Text("SayIt").font(Theme.display(23)).foregroundStyle(ink)
+        ViewThatFits(in: .horizontal) {
+            bar(compact: false)
+            bar(compact: true)
+        }
+        .frame(height: 44)
+        .background {
+            if !onDark { Theme.ground.ignoresSafeArea(edges: .top) }
+        }
+    }
+
+    private func bar(compact: Bool) -> some View {
+        let button: CGFloat = compact ? 30 : 32
+        return HStack(spacing: compact ? 8 : 14) {
+            Text("SayIt").font(Theme.display(compact ? 19 : 23)).foregroundStyle(ink)
+                .fixedSize()
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 4)
             if model.selectedTab == .feed && model.feedLayout == .sheet {
-                segmentedTabs
+                segmentedTabs(compact: compact)
             } else {
-                textTabs
+                textTabs(compact: compact)
             }
+            Button {
+                model.feedPath.append(.search)
+            } label: {
+                circleIcon("magnifyingglass", size: button)
+            }
+            .accessibilityLabel("Search posts")
             Button {
                 if authService.isSignedIn { model.feedPath.append(.compose) } else { model.isBrowsingAsGuest = false }
             } label: {
-                Image(systemName: "plus").font(.system(size: 16, weight: .bold)).foregroundStyle(ink)
-                    .frame(width: 32, height: 32)
-                    .background((onDark ? Theme.cream : Theme.text).opacity(0.14), in: Circle())
+                circleIcon("plus", size: button)
             }
             .accessibilityLabel("New post")
             Button {
@@ -70,32 +89,32 @@ struct MainView: View {
             } label: {
                 if authService.isSignedIn {
                     RingAvatar(name: model.displayName, photoURL: model.profile?.photoURL ?? authService.currentUser?.photoURL?.absoluteString,
-                               size: 32, ring: onDark ? Theme.cream.opacity(0.6) : nil)
+                               size: button, ring: onDark ? Theme.cream.opacity(0.6) : nil)
                 } else {
-                    Image(systemName: "person.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(ink)
-                        .frame(width: 32, height: 32)
-                        .background((onDark ? Theme.cream : Theme.text).opacity(0.14), in: Circle())
+                    circleIcon("person.fill", size: button)
                 }
             }
             .accessibilityLabel(authService.isSignedIn ? "Your profile" : "Sign in")
         }
-        .padding(.horizontal, 18)
-        .frame(height: 44)
-        .background {
-            if !onDark { Theme.ground.ignoresSafeArea(edges: .top) }
-        }
+        .padding(.horizontal, compact ? 12 : 18)
+    }
+
+    private func circleIcon(_ name: String, size: CGFloat) -> some View {
+        Image(systemName: name).font(.system(size: size * 0.47, weight: .bold)).foregroundStyle(ink)
+            .frame(width: size, height: size)
+            .background((onDark ? Theme.cream : Theme.text).opacity(0.14), in: Circle())
     }
 
     private let tabs: [(AppTab, String)] = [(.feed, "For you"), (.orgs, "Orgs"), (.inbox, "Inbox")]
 
-    private var textTabs: some View {
-        HStack(spacing: 12) {
+    private func textTabs(compact: Bool) -> some View {
+        HStack(spacing: compact ? 9 : 12) {
             ForEach(tabs, id: \.0) { tab, title in
                 Button {
                     model.selectedTab = tab
                 } label: {
                     HStack(spacing: 3) {
-                        Text(title).font(Theme.body(13.5, .semibold))
+                        Text(title).font(Theme.body(13.5, .semibold)).fixedSize()
                         if tab == .inbox && model.unreadThreadCount > 0 {
                             Circle().fill(Theme.accent400).frame(width: 7, height: 7)
                         }
@@ -109,23 +128,24 @@ struct MainView: View {
     }
 
     /// 1b's segmented pill over the photo.
-    private var segmentedTabs: some View {
+    private func segmentedTabs(compact: Bool) -> some View {
         HStack(spacing: 2) {
             ForEach(tabs, id: \.0) { tab, title in
                 Button {
                     model.selectedTab = tab
                 } label: {
                     HStack(spacing: 3) {
-                        Text(title).font(Theme.body(12.5, .semibold))
+                        Text(title).font(Theme.body(12.5, .semibold)).fixedSize()
                         if tab == .inbox && model.unreadThreadCount > 0 {
                             Circle().fill(Theme.accent400).frame(width: 6, height: 6)
                         }
                     }
-                    .padding(.horizontal, 10).frame(height: 28)
+                    .padding(.horizontal, compact ? 7 : 10).frame(height: 28)
                     .foregroundStyle(model.selectedTab == tab ? Theme.ink : Theme.cream)
                     .background(model.selectedTab == tab ? Theme.cream : .clear, in: Capsule())
                 }
                 .accessibilityAddTraits(model.selectedTab == tab ? .isSelected : [])
+                .accessibilityLabel(tab == .inbox && model.unreadThreadCount > 0 ? "Inbox, \(model.unreadThreadCount) new" : title)
             }
         }
         .padding(3)

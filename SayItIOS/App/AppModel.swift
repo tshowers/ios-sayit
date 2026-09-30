@@ -12,6 +12,7 @@ enum AppRoute: Hashable {
     case org(Org)
     case me
     case layoutPicker
+    case search
     case compose
     case report(Post)
     case signIn

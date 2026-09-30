@@ -74,6 +74,8 @@ struct AppDestination: View {
             MyProfileView(model: model)
         case .layoutPicker:
             LayoutSettingView(model: model)
+        case .search:
+            SearchView(model: model)
         case .report(let post):
             ReportView(model: model, post: post)
         case .signIn:
