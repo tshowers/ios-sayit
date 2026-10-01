@@ -15,6 +15,7 @@ enum AppRoute: Hashable {
     case search
     case compose
     case report(Post)
+    case reportComment(Post, Comment)
     case signIn
     case guidelines
     case profileEditor
@@ -44,6 +45,11 @@ final class AppModel: ObservableObject {
     @Published private(set) var isFeedLoading = true
     @Published private(set) var profile: SayItProfile?
     @Published private(set) var blockedUids: Set<String> = []
+    /// Posts this person hid from their feed (guideline 1.2: remove a post
+    /// from the feed immediately). Kept on the device.
+    @Published private(set) var hiddenPostIds: Set<String> = Set(UserDefaults.standard.stringArray(forKey: AppModel.hiddenPostsKey) ?? [])
+    /// Banned for breaking the guidelines (`sayit-bans/{uid}`).
+    @Published private(set) var isBanned = false
     @Published private(set) var unreadInterestCount = 0
     /// Signed-out visitors see the wizard first; "Just browse" skips to the feed.
     @Published var isBrowsingAsGuest: Bool {
@@ -64,6 +70,7 @@ final class AppModel: ObservableObject {
 
     private static let browseKey = "sayit.browsingAsGuest"
     private static let termsKey = "sayit.communityGuidelinesAccepted.v1"
+    private static let hiddenPostsKey = "sayit.hiddenPostIds"
     private var feedListener: ListenerRegistration?
 
     init(config: AppConfig, auth: AuthService) {
@@ -125,6 +132,25 @@ final class AppModel: ObservableObject {
     /// every sign-in records acceptance.
     func recordGuidelinesAccepted() {
         UserDefaults.standard.set(true, forKey: Self.termsKey)
+        objectWillChange.send()
+    }
+
+    var hasAcceptedGuidelines: Bool {
+        UserDefaults.standard.bool(forKey: Self.termsKey)
+    }
+
+    /// Takes a post out of this person's feed right away.
+    func hidePost(_ postId: String) {
+        hiddenPostIds.insert(postId)
+        UserDefaults.standard.set(Array(hiddenPostIds), forKey: Self.hiddenPostsKey)
+    }
+
+    /// The content check every post and comment passes before it's saved
+    /// (guideline 1.2): fails closed if the check can't run, refuses
+    /// anything rated 5-6, and stops banned accounts.
+    func screen(_ content: String, category: String) async throws -> Moderation.Result {
+        if isBanned { throw ModerationError.banned }
+        return try ModerationError.check(await backend.moderate(content: content, category: category))
     }
 
     /// Runs at launch and whenever the signed-in account changes.
@@ -133,6 +159,7 @@ final class AppModel: ObservableObject {
         threadsListener = nil
         guard let uid = auth.userId else {
             profile = nil
+            isBanned = false
             blockedUids = []
             unreadInterestCount = 0
             likedPostIds = []
@@ -148,6 +175,7 @@ final class AppModel: ObservableObject {
             profile = SayItProfile(uid: uid)
         }
         interestedPosts = (try? await repository.myInterests(uid: uid)) ?? [:]
+        isBanned = (try? await repository.isBanned(uid: uid)) ?? false
         threadsListener = repository.listenToThreads(uid: uid) { [weak self] threads in
             Task { @MainActor in self?.threads = threads }
         }
@@ -392,8 +420,18 @@ final class AppModel: ObservableObject {
 
             if draft.publishedPostId == nil {
                 let content = PostDraft.cleaned(draft.postText)
+                var moderation: Moderation.Result?
                 if !content.isEmpty {
-                    let moderation = await backend.moderate(content: content, category: draft.category)
+                    do {
+                        moderation = try await screen(content, category: draft.category)
+                    } catch let error as ModerationError where error != .unavailable {
+                        // Refused or banned: drop the post, keep the account.
+                        draft.postText = ""
+                        draft.save()
+                        showToast(error.localizedDescription)
+                    }
+                }
+                if !content.isEmpty, let moderation {
                     draft.publishedPostId = try await repository.publish(.init(
                         content: content,
                         category: draft.category,

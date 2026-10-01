@@ -184,14 +184,21 @@ struct ComposerView: View {
         defer { isPosting = false }
 
         do {
+            if !model.hasAcceptedGuidelines {
+                // Signed in before the agreement existed: agree first.
+                model.feedPath.append(.guidelines)
+                return
+            }
+            // Checked before anything is uploaded or saved (guideline 1.2).
+            status = "Checking…"
+            let content = details.isEmpty ? headline : "\(headline)\n\n\(details)"
+            let moderation = try await model.screen(content, category: category)
             var image: (url: String, path: String)?
             if let photo, let jpeg = Self.jpeg(photo) {
                 status = "Uploading photo…"
                 image = try await model.repository.uploadPostImage(jpeg)
             }
             status = "Posting…"
-            let content = details.isEmpty ? headline : "\(headline)\n\n\(details)"
-            let moderation = await model.backend.moderate(content: content, category: category)
             let org = model.profile?.businessName.trimmingCharacters(in: .whitespaces) ?? ""
             let role = model.profile?.role.trimmingCharacters(in: .whitespaces) ?? ""
             let trimmedPrice = price.trimmingCharacters(in: .whitespaces)

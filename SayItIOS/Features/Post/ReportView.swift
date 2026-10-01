@@ -3,6 +3,8 @@ import SwiftUI
 struct ReportView: View {
     @ObservedObject var model: AppModel
     let post: Post
+    /// Set when reporting a comment rather than the post.
+    var comment: Comment? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var reason = ReportView.reasons[0]
@@ -22,7 +24,7 @@ struct ReportView: View {
                 }
                     .listRowBackground(Theme.neutral100)
             } else {
-                Section("Why are you reporting this post?") {
+                Section(comment == nil ? "Why are you reporting this post?" : "Why are you reporting this comment?") {
                     Picker("Reason", selection: $reason) {
                         ForEach(Self.reasons, id: \.self) { Text($0) }
                     }
@@ -30,12 +32,19 @@ struct ReportView: View {
                     .labelsHidden()
                 }
                     .listRowBackground(Theme.neutral100)
-                if post.authorUid != nil {
+                if let name = blockableName {
                     Section {
-                        Toggle("Also block \(post.displayName)", isOn: $alsoBlock)
+                        Toggle("Also block \(name)", isOn: $alsoBlock)
                     }
                     .listRowBackground(Theme.neutral100)
                 }
+                Section {
+                    Text(comment == nil ? "The post disappears from your feed right away. We review every report within 24 hours, remove content that breaks the Community Guidelines, and ban whoever posted it." : "We review every report within 24 hours, remove content that breaks the Community Guidelines, and ban whoever posted it.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    ContactSupportLink()
+                }
+                .listRowBackground(Theme.neutral100)
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 }
@@ -43,7 +52,7 @@ struct ReportView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Theme.ground.ignoresSafeArea())
-        .navigationTitle("Report Post")
+        .navigationTitle(comment == nil ? "Report Post" : "Report Comment")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -58,20 +67,40 @@ struct ReportView: View {
         }
     }
 
+    private var blockableUid: String? { comment?.authorUid ?? post.authorUid }
+    private var blockableName: String? {
+        guard blockableUid != nil, blockableUid != model.auth.userId else { return nil }
+        return comment?.authorDisplayName ?? post.displayName
+    }
+
     @MainActor
     private func send() async {
         isSending = true
         errorMessage = nil
         defer { isSending = false }
         do {
-            try await model.repository.report(post, reason: reason)
-            await model.backend.notifyReport(post: post, reason: reason, reporterEmail: model.auth.currentUser?.email, postURL: model.postURL(for: post))
-            if alsoBlock, let author = post.authorUid {
+            // The backend emails the moderator about every new report
+            // (post-reports trigger), so it works for every user.
+            try await model.repository.report(post, comment: comment, reason: reason)
+            if comment == nil { model.hidePost(post.id) }
+            if alsoBlock, let author = blockableUid {
                 try await model.block(author)
             }
             sent = true
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+/// How to reach us about anything inappropriate (guideline 1.2 asks for
+/// contact information inside the app).
+struct ContactSupportLink: View {
+    var body: some View {
+        if let mail = URL(string: "mailto:\(AppConfig.supportEmail)?subject=Say%20It%20-%20report%20a%20problem") {
+            Link(destination: mail) {
+                Label("Contact us: \(AppConfig.supportEmail)", systemImage: "envelope")
+            }
         }
     }
 }

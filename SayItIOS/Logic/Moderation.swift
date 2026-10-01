@@ -47,3 +47,37 @@ enum Moderation {
         )
     }
 }
+
+/// Why a post or comment can't go out (App Store guideline 1.2 filtering).
+enum ModerationError: LocalizedError, Equatable {
+    /// The content check couldn't run - nothing is published unchecked.
+    case unavailable
+    /// Rated too inappropriate to publish.
+    case rejected(String)
+    /// The account was banned for breaking the guidelines.
+    case banned
+
+    /// New posts and comments rated this high (5 Highly Inappropriate,
+    /// 6 Offensive) are refused; the feed already hides 6 and warns on 4-5.
+    static let blockedRating = 5
+
+    var errorDescription: String? {
+        switch self {
+        case .unavailable:
+            return "We couldn't check this against the Community Guidelines right now. Please try again in a moment."
+        case .rejected(let explanation):
+            let reason = explanation.trimmingCharacters(in: .whitespacesAndNewlines)
+            return "This can't be posted - it breaks the Community Guidelines." + (reason.isEmpty ? "" : " (\(reason))")
+        case .banned:
+            return "Your account can't post on Say It because it broke the Community Guidelines. If you think this is a mistake, contact us from the Community Guidelines page."
+        }
+    }
+
+    /// Turns a moderation result into publish / don't publish.
+    static func check(_ result: Moderation.Result?) throws -> Moderation.Result {
+        guard let result else { throw ModerationError.unavailable }
+        if result.rating >= blockedRating { throw ModerationError.rejected(result.explanation) }
+        return result
+    }
+}
+

@@ -13,7 +13,7 @@ struct MainView: View {
     }
 
     private var feedPosts: [Post] {
-        FeedFilter(blockedUids: model.blockedUids).apply(to: model.posts)
+        FeedFilter(blockedUids: model.blockedUids, hiddenPostIds: model.hiddenPostIds).apply(to: model.posts)
     }
 
     var body: some View {

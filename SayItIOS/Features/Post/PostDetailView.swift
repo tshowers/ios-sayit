@@ -94,6 +94,17 @@ struct PostDetailView: View {
                 }
                 ForEach(visibleComments) { comment in
                     CommentRow(comment: comment)
+                        .contextMenu {
+                            if comment.authorUid != model.auth.userId {
+                                Button("Report Comment", systemImage: "flag") {
+                                    pushed = model.canParticipate ? .reportComment(post, comment) : .signIn
+                                }
+                                Button("Block \(comment.authorDisplayName)", systemImage: "hand.raised") {
+                                    guard model.auth.isSignedIn else { pushed = .signIn; return }
+                                    Task { try? await model.block(comment.authorUid) }
+                                }
+                            }
+                        }
                         .swipeActions {
                             if comment.authorUid == model.auth.userId {
                                 Button("Delete", role: .destructive) { Task { await deleteComment(comment) } }
@@ -147,7 +158,14 @@ struct PostDetailView: View {
         Menu {
             if isMine {
                 Button("Delete Post", systemImage: "trash", role: .destructive) { confirmDelete = true }
-            } else if !post.isSystemPost {
+            } else {
+                Button("Hide Post", systemImage: "eye.slash") {
+                    model.hidePost(post.id)
+                    model.showToast("Hidden from your feed")
+                    dismiss()
+                }
+            }
+            if !isMine && !post.isSystemPost {
                 Button("Report Post", systemImage: "flag") {
                     pushed = model.canParticipate ? .report(post) : .signIn
                 }
@@ -187,9 +205,11 @@ struct PostDetailView: View {
     @MainActor
     private func sendComment() async {
         guard model.canParticipate else { pushed = .signIn; return }
+        guard model.hasAcceptedGuidelines else { pushed = .guidelines; return }
         isSending = true
         defer { isSending = false }
         do {
+            _ = try await model.screen(commentText, category: "comment")
             try await model.repository.addComment(postId: postId, content: commentText, displayName: model.displayName)
             commentText = ""
             model.awards.recordCommented()

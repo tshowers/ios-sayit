@@ -11,6 +11,8 @@ struct FeedFilter: Equatable {
     /// Nil shows every kind.
     var kind: PostKind?
     var blockedUids: Set<String> = []
+    /// Posts this person hid from their own feed.
+    var hiddenPostIds: Set<String> = []
 
     static let offensiveRating = 6
 
@@ -19,7 +21,7 @@ struct FeedFilter: Equatable {
         let words = Self.words(in: searchText)
 
         return posts.filter { post in
-            if post.isHidden { return false }
+            if post.isHidden || hiddenPostIds.contains(post.id) { return false }
             if (post.contentRating ?? 1) >= Self.offensiveRating { return false }
             if let author = post.authorUid, blockedUids.contains(author) { return false }
 

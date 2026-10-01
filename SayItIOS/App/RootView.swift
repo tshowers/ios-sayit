@@ -78,10 +78,12 @@ struct AppDestination: View {
             SearchView(model: model)
         case .report(let post):
             ReportView(model: model, post: post)
+        case .reportComment(let post, let comment):
+            ReportView(model: model, post: post, comment: comment)
         case .signIn:
             SignInView(model: model)
         case .guidelines:
-            CommunityGuidelinesView()
+            CommunityGuidelinesView(model: model)
         case .profileEditor:
             SayItProfileEditor(model: model)
         case .account:

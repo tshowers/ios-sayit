@@ -356,12 +356,19 @@ final class SayItRepository {
 
     /// App Store guideline 1.2: a way to flag objectionable content. Reports
     /// land in `post-reports` for review.
-    func report(_ post: Post, reason: String) async throws {
+    /// A report on a comment carries the comment too; the moderator's
+    /// "remove" then deletes just that comment.
+    func report(_ post: Post, comment: Comment? = nil, reason: String) async throws {
         guard let user = Auth.auth().currentUser else { throw AuthServiceError.notSignedIn }
         try await reports.addDocument(data: FirestoreValues.compact([
             "postId": post.id,
             "postAuthorUid": post.authorUid,
+            "postAuthorName": post.displayName,
             "postPreview": String(post.content.prefix(300)),
+            "commentId": comment?.id,
+            "commentAuthorUid": comment?.authorUid,
+            "commentAuthorName": comment?.authorDisplayName,
+            "commentPreview": comment.map { String($0.content.prefix(300)) },
             "reason": reason,
             "reporterUid": user.uid,
             "reporterEmail": user.email,
@@ -369,6 +376,14 @@ final class SayItRepository {
             "status": "open",
             "source": "ios",
         ]))
+    }
+}
+
+extension SayItRepository {
+    /// Banned for breaking the community guidelines (`sayit-bans/{uid}`,
+    /// written by the backend's moderation action).
+    func isBanned(uid: String) async throws -> Bool {
+        try await Firestore.firestore().collection("sayit-bans").document(uid).getDocument().exists
     }
 }
 
