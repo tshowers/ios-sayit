@@ -58,7 +58,7 @@ struct PostRowView: View {
     @ViewBuilder
     private var content: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if !post.content.isEmpty {
+            if !text.isEmpty {
                 Text(attributedContent)
                     .font(isDetail ? .body : .callout)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -67,17 +67,25 @@ struct PostRowView: View {
 
             if let imageURL = post.postImageURL.flatMap(URL.init(string:)) {
                 RemoteImage(url: imageURL)
+            } else if isDetail, let video = post.linkVideo {
+                // A post's page plays the video right there.
+                InlineVideoView(video: video, thumbnail: post.linkPreview?.image)
+                if let preview = post.linkPreview {
+                    LinkPreviewCard(preview: preview, showImage: false)
+                }
             } else if let preview = post.linkPreview {
-                LinkPreviewCard(preview: preview)
+                LinkPreviewCard(preview: preview, isVideo: post.linkVideo != nil)
             }
         }
     }
 
+    /// The post's words; a link that has a preview shows as the card instead.
+    private var text: String { post.textWithoutLink }
+
     /// Makes URLs in the post tappable.
     private var attributedContent: AttributedString {
-        var attributed = AttributedString(post.content)
+        var attributed = AttributedString(text)
         guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return attributed }
-        let text = post.content
         for match in detector.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
             guard let url = match.url,
                   let range = Range(match.range, in: text),
@@ -108,11 +116,17 @@ private struct RemoteImage: View {
 
 private struct LinkPreviewCard: View {
     let preview: LinkPreview
+    var showImage = true
+    var isVideo = false
 
     var body: some View {
         let card = VStack(alignment: .leading, spacing: 6) {
-            if let image = preview.image.flatMap(URL.init(string:)) {
+            if showImage, let image = preview.image.flatMap(URL.init(string:)) {
                 RemoteImage(url: image)
+                    .overlay { if isVideo { PlayBadge(size: 48) } }
+            }
+            if let site = preview.siteName ?? preview.video?.siteName ?? preview.url.flatMap(URL.init(string:))?.host?.replacingOccurrences(of: "www.", with: "") {
+                Text(site.uppercased()).font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.secondary)
             }
             if let title = preview.title {
                 Text(title).font(.subheadline.weight(.semibold)).lineLimit(2)

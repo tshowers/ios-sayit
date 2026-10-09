@@ -15,6 +15,8 @@ struct FeedPagerView: View {
     @State private var drag: CGFloat = 0
     @State private var orgCardPostId: String?
     @State private var route: AppRoute?
+    /// The video playing in theater mode.
+    @State private var theaterVideo: PostVideo?
 
     private let snap = Animation.timingCurve(0.2, 0.8, 0.2, 1, duration: 0.46)
 
@@ -65,6 +67,7 @@ struct FeedPagerView: View {
         .onAppear { index = min(startIndex, max(posts.count - 1, 0)) }
         .onChange(of: posts.count) { _, count in if index >= count { index = max(count - 1, 0) } }
         .navigationDestination(item: $route) { AppDestination(model: model, route: $0) }
+        .fullScreenCover(item: $theaterVideo) { VideoTheaterView(video: $0) }
         .accessibilityAction(named: "Next post") { withAnimation(snap) { index = min(index + 1, posts.count - 1) } }
         .accessibilityAction(named: "Previous post") { withAnimation(snap) { index = max(index - 1, 0) } }
     }
@@ -87,6 +90,7 @@ struct FeedPagerView: View {
             interested: { signedIn { Task { await model.toggleInterest(post) } } },
             openOrg: { orgCardPostId = post.id; Task { if model.orgs.isEmpty { await model.loadOrgs() } } },
             openPost: { route = .post(post.id) },
+            play: { theaterVideo = $0 },
             counter: "\(index + 1) / \(posts.count)"
         )
         switch layout {
@@ -213,6 +217,8 @@ struct PostActions {
     var interested: () -> Void
     var openOrg: () -> Void
     var openPost: () -> Void
+    /// Plays a linked YouTube / Vimeo video in theater mode.
+    var play: (PostVideo) -> Void
     var counter: String
 }
 
@@ -342,6 +348,7 @@ struct PostStage<Content: View>: View {
         let h = size.height
         if post.imageURL != nil {
             photo(width: size.width, height: h * 0.6, fadeTo: .bottom)
+            playButton(width: size.width, height: h * 0.6)
         } else {
             band(width: size.width, height: size.height)
         }
@@ -383,6 +390,7 @@ struct PostStage<Content: View>: View {
         if post.imageURL != nil {
             HStack(spacing: 0) {
                 photo(width: size.width * 0.56, height: size.height, fadeTo: .trailing)
+                    .overlay { playButton(width: size.width * 0.56, height: size.height) }
                 VStack(spacing: 0) {
                     Color.clear.frame(height: topInset + 40)
                     Spacer(minLength: 0)
@@ -429,6 +437,17 @@ struct PostStage<Content: View>: View {
         .frame(width: width, height: height, alignment: .top)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// A linked video's play button, centered on its thumbnail.
+    @ViewBuilder
+    private func playButton(width: CGFloat, height: CGFloat) -> some View {
+        if let video = post.linkVideo {
+            Button { actions.play(video) } label: { PlayBadge(size: 72 * s) }
+                .buttonStyle(PressScaleStyle())
+                .frame(width: width, height: height * 0.8)
+                .accessibilityLabel("Play video")
+        }
     }
 
     /// No photo: the org's color and stripes over the top of the screen,
@@ -570,6 +589,7 @@ struct OverlayPostPage: View {
                             .buttonStyle(.plain)
                         KindPriceRow(post: post, priceColor: Theme.text)
                         HeadlineAndBody(post: post, size: 22).onTapGesture(perform: actions.openPost)
+                        PostLinkRow(post: post, onPlay: actions.play)
                         PostMetaRow(post: post)
                     }
                     VStack(spacing: 16 * s) {
@@ -633,6 +653,7 @@ struct SheetPostPage: View {
                         Text(relativeTime(post.timestamp)).font(Theme.body(12)).foregroundStyle(Theme.neutral700)
                     }
                     HeadlineAndBody(post: post, size: 21).onTapGesture(perform: actions.openPost)
+                    PostLinkRow(post: post, onPlay: actions.play)
                     KindPriceRow(post: post, priceColor: Theme.text, priceSize: 15, tagFill: Theme.sage100, tagInk: Theme.sage800)
                     PostMetaRow(post: post)
                     HStack(spacing: 8) {
@@ -705,6 +726,7 @@ struct RibbonPostPage: View {
                 if let text = post.body {
                     Text(text).font(Theme.body(14.5)).foregroundStyle(Theme.neutral800).fixedSize(horizontal: false, vertical: true)
                 }
+                PostLinkRow(post: post, onPlay: actions.play)
                 PostMetaRow(post: post)
                 HStack(alignment: .center) {
                     Button(action: actions.like) {

@@ -1,10 +1,78 @@
 import Foundation
 
+/// Saved on a post by the backend's posts trigger when the post has a link
+/// (todd-backend sayit/linkPreview.service.js), so the app shows a card
+/// instead of a bare URL.
 struct LinkPreview: Equatable, Hashable {
     var title: String?
     var description: String?
     var url: String?
     var image: String?
+    /// "YouTube", "ESPN.com"...
+    var siteName: String?
+    /// YouTube and Vimeo links, which play in place.
+    var video: PostVideo?
+}
+
+/// A YouTube or Vimeo video a post links to. TikTok isn't played in place;
+/// it shows as an ordinary link.
+struct PostVideo: Identifiable, Equatable, Hashable {
+    enum Provider: String { case youtube, vimeo }
+
+    let provider: Provider
+    let id: String
+
+    init(provider: Provider, id: String) {
+        self.provider = provider
+        self.id = id
+    }
+
+    /// Reads the video from a link, as the backend does.
+    init?(url string: String?) {
+        guard let string, let url = URL(string: string), let rawHost = url.host?.lowercased() else { return nil }
+        let host = rawHost.replacingOccurrences(of: #"^(www\.|m\.|music\.)"#, with: "", options: .regularExpression)
+        let segments = url.path.split(separator: "/").map(String.init)
+        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+
+        if host == "youtu.be", let first = segments.first, Self.isYouTubeId(first) {
+            self.init(provider: .youtube, id: first)
+        } else if host == "youtube.com" || host == "youtube-nocookie.com" {
+            if let v = query.first(where: { $0.name == "v" })?.value, Self.isYouTubeId(v) {
+                self.init(provider: .youtube, id: v)
+            } else if segments.count > 1, ["shorts", "embed", "live", "v"].contains(segments[0]), Self.isYouTubeId(segments[1]) {
+                self.init(provider: .youtube, id: segments[1])
+            } else {
+                return nil
+            }
+        } else if host == "vimeo.com" || host == "player.vimeo.com",
+                  let id = segments.first(where: { $0.count >= 6 && $0.allSatisfy(\.isNumber) }) {
+            self.init(provider: .vimeo, id: id)
+        } else {
+            return nil
+        }
+    }
+
+    init?(map: [String: Any]?) {
+        guard let map, let provider = (map["provider"] as? String).flatMap(Provider.init(rawValue:)),
+              let id = FieldReader.string(map["id"]) else { return nil }
+        self.init(provider: provider, id: id)
+    }
+
+    private static func isYouTubeId(_ value: String) -> Bool {
+        value.count == 11 && value.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+    }
+
+    var siteName: String { provider == .youtube ? "YouTube" : "Vimeo" }
+
+    var thumbnailURL: String? { provider == .youtube ? "https://i.ytimg.com/vi/\(id)/hqdefault.jpg" : nil }
+
+    /// The provider's player, for VideoPlayerWebView.
+    var embedURL: URL {
+        switch provider {
+        case .youtube: return URL(string: "https://www.youtube.com/embed/\(id)?autoplay=1&playsinline=1&rel=0")!
+        case .vimeo: return URL(string: "https://player.vimeo.com/video/\(id)?autoplay=1&playsinline=1")!
+        }
+    }
 }
 
 /// A document in the top-level `posts` collection - the same records the
@@ -99,7 +167,9 @@ struct Post: Identifiable, Equatable, Hashable {
                 title: FieldReader.string(map["title"]),
                 description: FieldReader.string(map["description"]),
                 url: FieldReader.string(map["url"]),
-                image: FieldReader.string(map["image"])
+                image: FieldReader.string(map["image"]),
+                siteName: FieldReader.string(map["siteName"]),
+                video: PostVideo(map: map["video"] as? [String: Any])
             )
             if candidate.title != nil || candidate.url != nil || candidate.image != nil {
                 preview = candidate
@@ -133,16 +203,43 @@ struct Post: Identifiable, Equatable, Hashable {
         )
     }
 
-    /// The big line: the composer's title, else the whole post for older ones.
-    var headline: String { title ?? content }
+    /// The big line: the composer's title, else the post's words. A post
+    /// that's only a link shows the linked page's title instead of the URL.
+    var headline: String {
+        if let title { return title }
+        let words = textWithoutLink
+        if words.isEmpty, let linkTitle = linkPreview?.title, !linkTitle.isEmpty { return linkTitle }
+        return words.isEmpty ? content : words
+    }
 
     /// Text under the headline - only posts written with a separate title have one.
     var body: String? { title == nil ? nil : caption }
 
     /// No photo: the post's words are the visual (the design's quote card).
-    var isTextOnly: Bool { postImageURL == nil && linkPreview?.image == nil }
+    var isTextOnly: Bool { imageURL == nil }
 
-    var imageURL: String? { postImageURL ?? linkPreview?.image }
+    var imageURL: String? { postImageURL ?? linkPreview?.image ?? linkVideo?.thumbnailURL }
+
+    /// The post's link: the saved preview's URL, else the first link in its words.
+    var linkURL: String? { linkPreview?.url ?? Self.firstURL(in: content) }
+
+    /// The YouTube or Vimeo video to play in place, if the post links to one.
+    var linkVideo: PostVideo? { linkPreview?.video ?? PostVideo(url: linkURL) }
+
+    /// The post's words without its link, once the link shows as a preview.
+    var textWithoutLink: String {
+        guard linkPreview != nil, let url = Self.firstURL(in: content) else { return content.trimmingCharacters(in: .whitespacesAndNewlines) }
+        var text = content.replacingOccurrences(of: url, with: " ")
+        for (pattern, template) in [(#"[(\[]\s*[)\]]"#, ""), (#"[ \t]+([.,!?;:])"#, "$1"), (#"[ \t]{2,}"#, " "), (#"\s*\n\s*\n\s*"#, "\n\n")] {
+            text = text.replacingOccurrences(of: pattern, with: template, options: .regularExpression)
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func firstURL(in text: String) -> String? {
+        guard let range = text.range(of: #"https?://[^\s<>"']+"#, options: [.regularExpression, .caseInsensitive]) else { return nil }
+        return String(text[range]).replacingOccurrences(of: #"[).,!?;:'"\]]+$"#, with: "", options: .regularExpression)
+    }
 
     /// "Jane Doe" out of "Jane Doe at AT&T" when there's no separate org field.
     var personName: String { displayName.components(separatedBy: " at ").first ?? displayName }
