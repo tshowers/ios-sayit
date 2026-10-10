@@ -6,11 +6,13 @@ struct AppConfig {
     let backendAPIKey: String
     let masterTenantId: String
 
-    static let supportEmail = "info@taliferro.com"
-    /// Apple's standard Terms of Use (EULA) - SayIt's own rules are the
-    /// in-app Community Guidelines. (taliferro.com/terms-and-conditions was a 404.)
-    static let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-    static let privacyURL = URL(string: "https://taliferro.com/privacy-policy")!
+    /// Products inbox (info@taliferro.com is for consulting).
+    static let supportEmail = "info@taliferro.tech"
+    /// SayIt's own Terms of Use (EULA): zero tolerance for objectionable
+    /// content and abusive users (App Store guideline 1.2), plus Apple's
+    /// required EULA terms. Source: web-products/sayit/public/terms.html.
+    static let termsURL = URL(string: "https://sayit.taliferro.tech/terms")!
+    static let privacyURL = URL(string: "https://taliferro.tech/privacy")!
 
     static func fromBundle(bundle: Bundle = .main) -> AppConfig {
         func value(_ key: String) -> String {
