@@ -100,14 +100,8 @@ private struct RemoteImage: View {
     let url: URL
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if let image = phase.image {
-                image.resizable().scaledToFit()
-            } else if phase.error != nil {
-                EmptyView()
-            } else {
-                Rectangle().fill(.quaternary).frame(height: 180)
-            }
+        CachedImage(url: url) { $0.resizable().scaledToFit() } placeholder: { failed in
+            if !failed { Rectangle().fill(.quaternary).frame(height: 180) }
         }
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

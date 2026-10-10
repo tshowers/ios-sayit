@@ -8,13 +8,7 @@ struct AvatarView: View {
     var body: some View {
         Group {
             if let urlString, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        initials
-                    }
-                }
+                CachedImage(url: url) { $0.resizable().scaledToFill() } placeholder: { _ in initials }
             } else {
                 initials
             }

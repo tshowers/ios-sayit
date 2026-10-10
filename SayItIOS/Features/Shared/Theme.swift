@@ -119,10 +119,8 @@ struct RingAvatar: View {
         ZStack {
             Circle().fill(Theme.neutral300)
             if let photoURL, let url = URL(string: photoURL) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image { image.resizable().scaledToFill() } else { initials }
-                }
-                .clipShape(Circle())
+                CachedImage(url: url) { $0.resizable().scaledToFill() } placeholder: { _ in initials }
+                    .clipShape(Circle())
             } else {
                 initials
             }
@@ -168,12 +166,7 @@ struct PostMedia: View {
             Theme.media
             Stripes(color: tint.opacity(0.35))
             if let url, let parsed = URL(string: url) {
-                AsyncImage(url: parsed) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                            .saturation(0.9)
-                    }
-                }
+                CachedImage(url: parsed) { $0.resizable().scaledToFill().saturation(0.9) }
             }
         }
         .clipped()

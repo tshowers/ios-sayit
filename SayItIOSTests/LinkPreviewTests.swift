@@ -32,4 +32,39 @@ final class LinkPreviewTests: XCTestCase {
         XCTAssertEqual(Post(id: "p", content: "Read this (https://espn.com/a).", linkPreview: preview).textWithoutLink, "Read this.")
         XCTAssertEqual(Post(id: "p", content: "https://espn.com/a").headline, "https://espn.com/a", "Unchanged until the preview arrives")
     }
+
+    func testHeadlineThatIsOnlyALinkShowsTheVideoTitle() {
+        // The composer saves a separate title; pasting a YouTube link there
+        // used to show the raw URL above its own preview card.
+        let link = "https://youtu.be/XsIG1Dp2fNs?si=tqidJ0pqYWIvea07"
+        let post = Post(id: "p", data: [
+            "content": link, "title": link,
+            "linkPreview": ["url": link, "title": "Barack Obama Being Hilarious", "siteName": "YouTube",
+                            "image": "https://i.ytimg.com/vi/XsIG1Dp2fNs/hqdefault.jpg",
+                            "video": ["provider": "youtube", "id": "XsIG1Dp2fNs"]],
+        ])
+        XCTAssertEqual(post.headline, "Barack Obama Being Hilarious")
+        XCTAssertEqual(post.imageURL, "https://i.ytimg.com/vi/XsIG1Dp2fNs/hqdefault.jpg")
+    }
+
+    func testHeadlineKeepsTheWordsAroundALink() {
+        let post = Post(id: "p", data: [
+            "content": "Watch this https://youtu.be/XsIG1Dp2fNs", "title": "Watch this https://youtu.be/XsIG1Dp2fNs",
+            "caption": "Details at https://espn.com/a",
+        ])
+        XCTAssertEqual(post.headline, "Watch this", "A playable video hides the URL even before the preview arrives")
+        XCTAssertEqual(post.body, "Details at https://espn.com/a", "Only the first link is a card; others stay")
+    }
+
+    func testPlainLinkStaysVisibleUntilItHasAPreview() {
+        let post = Post(id: "p", data: ["content": "See https://espn.com/a", "title": "See https://espn.com/a"])
+        XCTAssertEqual(post.headline, "See https://espn.com/a")
+    }
+
+    func testLinksDontCountTowardTheComposerLimits() {
+        let longLink = "https://www.usatoday.com/story/entertainment/celebrities/2026/10/09/halle-berry-daughter/92173323007/"
+        XCTAssertEqual(Post.visibleLength(of: longLink), 0)
+        XCTAssertEqual(Post.visibleLength(of: "Worth a read \(longLink)"), "Worth a read".count)
+        XCTAssertEqual(Post.visibleLength(of: "No link here"), 12)
+    }
 }

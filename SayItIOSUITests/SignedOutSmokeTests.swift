@@ -63,7 +63,9 @@ final class SignedOutSmokeTests: XCTestCase {
         if app.buttons["Continue"].waitForExistence(timeout: 5) { app.buttons["Continue"].tap() }
         XCTAssertTrue(app.staticTexts["Last step: sign in to post it"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Step 4 of 4"].exists)
-        XCTAssertTrue(app.buttons["Read the Community Guidelines"].exists)
+        // The guideline 1.2 agreement, and email sign-in for App Review's demo account.
+        XCTAssertTrue(app.buttons["Community Guidelines"].exists)
+        XCTAssertTrue(app.buttons["Sign in with email"].exists)
     }
 
     func testJustBrowseOpensTheFullScreenFeed() {

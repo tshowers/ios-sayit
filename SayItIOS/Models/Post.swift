@@ -206,14 +206,38 @@ struct Post: Identifiable, Equatable, Hashable {
     /// The big line: the composer's title, else the post's words. A post
     /// that's only a link shows the linked page's title instead of the URL.
     var headline: String {
-        if let title { return title }
+        if let title {
+            // The composer's headline can be just a pasted link. Once the link
+            // shows as a preview or a playable video, the URL isn't repeated.
+            guard showsLinkAsCard else { return title }
+            let words = removingCardLink(from: title)
+            if !words.isEmpty { return words }
+            if let linkTitle = linkPreview?.title, !linkTitle.isEmpty { return linkTitle }
+            return title
+        }
         let words = textWithoutLink
         if words.isEmpty, let linkTitle = linkPreview?.title, !linkTitle.isEmpty { return linkTitle }
         return words.isEmpty ? content : words
     }
 
     /// Text under the headline - only posts written with a separate title have one.
-    var body: String? { title == nil ? nil : caption }
+    var body: String? {
+        guard title != nil, let caption else { return nil }
+        guard showsLinkAsCard else { return caption }
+        let words = removingCardLink(from: caption)
+        return words.isEmpty ? nil : words
+    }
+
+    /// The text without the link that's shown as the card; any other link stays.
+    private func removingCardLink(from text: String) -> String {
+        guard let found = Self.firstURL(in: text) else { return text.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let isCard = found == linkURL || (linkVideo != nil && PostVideo(url: found) == linkVideo)
+        return isCard ? Self.removingLink(from: text) : text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The link is shown as a preview card or a playable video, so its URL
+    /// can come out of the words.
+    private var showsLinkAsCard: Bool { linkPreview != nil || linkVideo != nil }
 
     /// No photo: the post's words are the visual (the design's quote card).
     var isTextOnly: Bool { imageURL == nil }
@@ -228,12 +252,26 @@ struct Post: Identifiable, Equatable, Hashable {
 
     /// The post's words without its link, once the link shows as a preview.
     var textWithoutLink: String {
-        guard linkPreview != nil, let url = Self.firstURL(in: content) else { return content.trimmingCharacters(in: .whitespacesAndNewlines) }
-        var text = content.replacingOccurrences(of: url, with: " ")
+        guard linkPreview != nil else { return content.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return Self.removingLink(from: content)
+    }
+
+    /// The text without its first link, tidied ("Read this (link)." -> "Read this.").
+    static func removingLink(from text: String) -> String {
+        guard let url = firstURL(in: text) else { return text.trimmingCharacters(in: .whitespacesAndNewlines) }
+        var text = text.replacingOccurrences(of: url, with: " ")
         for (pattern, template) in [(#"[(\[]\s*[)\]]"#, ""), (#"[ \t]+([.,!?;:])"#, "$1"), (#"[ \t]{2,}"#, " "), (#"\s*\n\s*\n\s*"#, "\n\n")] {
             text = text.replacingOccurrences(of: pattern, with: template, options: .regularExpression)
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// How much of the text counts toward the composer's limits: links show
+    /// as a preview card, not as text, so they don't count.
+    static func visibleLength(of text: String) -> Int {
+        text.replacingOccurrences(of: #"https?://[^\s<>"']+"#, with: "", options: [.regularExpression, .caseInsensitive])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .count
     }
 
     static func firstURL(in text: String) -> String? {

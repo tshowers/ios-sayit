@@ -30,7 +30,9 @@ struct ComposerView: View {
 
     private var canPost: Bool {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !t.isEmpty && t.count <= Self.titleLimit && caption.count <= Self.captionLimit && !isPosting
+        // Links don't count: they show as a preview card, not as words.
+        return !t.isEmpty && Post.visibleLength(of: t) <= Self.titleLimit
+            && Post.visibleLength(of: caption) <= Self.captionLimit && !isPosting
     }
 
     var body: some View {
@@ -154,7 +156,8 @@ struct ComposerView: View {
             HStack {
                 label(title)
                 Spacer()
-                Text("\(limit - text.wrappedValue.count)").font(Theme.body(12)).foregroundStyle(text.wrappedValue.count > limit ? Theme.accentInk : Theme.neutral700)
+                let used = Post.visibleLength(of: text.wrappedValue)
+                Text("\(limit - used)").font(Theme.body(12)).foregroundStyle(used > limit ? Theme.accentInk : Theme.neutral700)
             }
             TextField(prompt, text: text, axis: axis)
                 .font(Theme.body(16))

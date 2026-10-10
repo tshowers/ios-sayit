@@ -114,9 +114,9 @@ struct InlineVideoView: View {
             } else {
                 Button { isPlaying = true } label: {
                     ZStack {
-                        AsyncImage(url: (thumbnail ?? video.thumbnailURL).flatMap(URL.init(string:))) { phase in
-                            if let image = phase.image { image.resizable().scaledToFill() } else { Color.black }
-                        }
+                        CachedImage(url: (thumbnail ?? video.thumbnailURL).flatMap(URL.init(string:))) {
+                            $0.resizable().scaledToFill()
+                        } placeholder: { _ in Color.black }
                         PlayBadge()
                     }
                 }
