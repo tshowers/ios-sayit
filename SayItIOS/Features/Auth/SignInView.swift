@@ -56,7 +56,8 @@ struct SignInView: View {
     }
 }
 
-/// Apple + Google (+ email in Debug builds) with the guidelines agreement.
+/// Apple + Google + email/password (for existing accounts, e.g. App
+/// Review's demo account) with the guidelines agreement.
 /// Shared by SignInView and the wizard's last step.
 struct SignInButtons: View {
     @ObservedObject var model: AppModel
@@ -79,9 +80,7 @@ struct SignInButtons: View {
                 onSignedIn: { Task { await finish() } },
                 onError: { errorMessage = $0.localizedDescription }
             )
-            #if DEBUG
-            DebugEmailSignInView(onSignedIn: { Task { await finish() } })
-            #endif
+            EmailSignInView(onSignedIn: { Task { await finish() } })
             }
             .disabled(!agreed)
             .opacity(agreed ? 1 : 0.45)
