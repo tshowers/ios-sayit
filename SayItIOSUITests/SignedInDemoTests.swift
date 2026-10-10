@@ -70,6 +70,13 @@ final class SignedInDemoTests: XCTestCase {
         let result = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'Obama'")).firstMatch
         XCTAssertTrue(result.waitForExistence(timeout: 10), "The video post shows its title")
         snapshot("3-search-video-post")
+        // An uploaded photo, too (the demo account's oak milk post), when it's there.
+        app.buttons["Clear search"].tap()
+        search.typeText("oak milk")
+        sleep(4)
+        snapshot("3b-search-photo-post")
+        app.buttons["Clear search"].tap()
+        search.typeText("Obama")
         result.tap()
         sleep(8)
         snapshot("4-video-post-in-feed")

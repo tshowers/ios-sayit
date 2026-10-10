@@ -54,7 +54,9 @@ struct FeedFilter: Equatable {
          post.kind?.label ?? "", post.price ?? "",
          // A post that's only a link is found by what the link is (its page
          // or video title, and site), not by its URL.
-         post.linkPreview?.title ?? "", post.linkPreview?.siteName ?? ""]
+         post.linkPreview?.title ?? "", post.linkPreview?.siteName ?? "",
+         // ...and a photo by what's in it (the server's image review).
+         post.imageDescription ?? "", post.imageKeywords.joined(separator: " ")]
             .joined(separator: " ")
             .lowercased()
     }

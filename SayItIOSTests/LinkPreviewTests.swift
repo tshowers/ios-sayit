@@ -74,4 +74,20 @@ final class LinkPreviewTests: XCTestCase {
         XCTAssertEqual(FeedFilter(searchText: "obama").apply(to: [post]).map(\.id), ["p"])
         XCTAssertEqual(FeedFilter(searchText: "youtube").apply(to: [post]).map(\.id), ["p"])
     }
+
+    func testSearchFindsAPhotoByWhatsInIt() {
+        let post = Post(id: "p", data: ["content": "The morning Start", "title": "The morning Start",
+                                        "postImageUrl": "https://example.com/a.jpg",
+                                        "imageDescription": "A cup of coffee topped with whipped cream.",
+                                        "imageKeywords": ["coffee", "beverage"]])
+        XCTAssertEqual(FeedFilter(searchText: "coffee").apply(to: [post]).map(\.id), ["p"])
+        XCTAssertEqual(FeedFilter(searchText: "beverage").apply(to: [post]).map(\.id), ["p"])
+    }
+
+    func testPostsRemovedByModerationAreHidden() {
+        // Moderation wrote only `isHidden` before 2026-10-10.
+        XCTAssertTrue(Post(id: "p", data: ["content": "x", "isHidden": true]).isHidden)
+        XCTAssertTrue(Post(id: "p", data: ["content": "x", "hidden": true]).isHidden)
+        XCTAssertTrue(FeedFilter().apply(to: [Post(id: "p", data: ["content": "x", "isHidden": true])]).isEmpty)
+    }
 }

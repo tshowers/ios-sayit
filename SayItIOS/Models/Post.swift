@@ -104,6 +104,10 @@ struct Post: Identifiable, Equatable, Hashable {
     var authorRole: String?
     var orgName: String?
     var favoriteUserIds: [String] = []
+    /// What the post's photo shows, from the server's image review
+    /// (sayit/imageReview.service.js) - searchable, so "coffee" finds a photo of coffee.
+    var imageDescription: String?
+    var imageKeywords: [String] = []
 
     init(
         id: String,
@@ -128,7 +132,9 @@ struct Post: Identifiable, Equatable, Hashable {
         price: String? = nil,
         authorRole: String? = nil,
         orgName: String? = nil,
-        favoriteUserIds: [String] = []
+        favoriteUserIds: [String] = [],
+        imageDescription: String? = nil,
+        imageKeywords: [String] = []
     ) {
         self.id = id
         self.authorUid = authorUid
@@ -153,6 +159,8 @@ struct Post: Identifiable, Equatable, Hashable {
         self.authorRole = authorRole
         self.orgName = orgName
         self.favoriteUserIds = favoriteUserIds
+        self.imageDescription = imageDescription
+        self.imageKeywords = imageKeywords
     }
 
     /// Builds a post from a Firestore document's data. Mirrors the web's
@@ -191,7 +199,8 @@ struct Post: Identifiable, Equatable, Hashable {
             authorHandle: FieldReader.string(data["authorHandle"]),
             authorEmail: FieldReader.string(data["emailAddress"]),
             favoriteCount: FieldReader.int(data["favoriteCount"]) ?? 0,
-            isHidden: FieldReader.bool(data["hidden"]) || FieldReader.bool(data["suspended"]),
+            // `isHidden` is what moderation wrote alone before 2026-10-10.
+            isHidden: FieldReader.bool(data["hidden"]) || FieldReader.bool(data["isHidden"]) || FieldReader.bool(data["suspended"]),
             isSystemPost: isSystem,
             title: FieldReader.string(data["title"]),
             caption: FieldReader.string(data["caption"]),
@@ -199,7 +208,9 @@ struct Post: Identifiable, Equatable, Hashable {
             price: FieldReader.string(data["price"]),
             authorRole: FieldReader.string(data["authorRole"]),
             orgName: FieldReader.string(data["orgName"]),
-            favoriteUserIds: FieldReader.stringArray(data["favoriteUserIds"])
+            favoriteUserIds: FieldReader.stringArray(data["favoriteUserIds"]),
+            imageDescription: FieldReader.string(data["imageDescription"]),
+            imageKeywords: FieldReader.stringArray(data["imageKeywords"])
         )
     }
 
