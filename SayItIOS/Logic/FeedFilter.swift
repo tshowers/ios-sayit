@@ -51,7 +51,10 @@ struct FeedFilter: Equatable {
     static func searchableText(_ post: Post) -> String {
         [post.content, post.title ?? "", post.caption ?? "", post.displayName, post.orgLabel ?? "",
          post.authorRole ?? "", post.category, PostCategory.label(for: post.category),
-         post.kind?.label ?? "", post.price ?? ""]
+         post.kind?.label ?? "", post.price ?? "",
+         // A post that's only a link is found by what the link is (its page
+         // or video title, and site), not by its URL.
+         post.linkPreview?.title ?? "", post.linkPreview?.siteName ?? ""]
             .joined(separator: " ")
             .lowercased()
     }

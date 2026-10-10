@@ -67,4 +67,11 @@ final class LinkPreviewTests: XCTestCase {
         XCTAssertEqual(Post.visibleLength(of: "Worth a read \(longLink)"), "Worth a read".count)
         XCTAssertEqual(Post.visibleLength(of: "No link here"), 12)
     }
+
+    func testSearchFindsALinkPostByItsPreviewTitle() {
+        let post = Post(id: "p", content: "https://youtu.be/XsIG1Dp2fNs",
+                        linkPreview: LinkPreview(title: "Barack Obama Being Hilarious", url: "https://youtu.be/XsIG1Dp2fNs", siteName: "YouTube"))
+        XCTAssertEqual(FeedFilter(searchText: "obama").apply(to: [post]).map(\.id), ["p"])
+        XCTAssertEqual(FeedFilter(searchText: "youtube").apply(to: [post]).map(\.id), ["p"])
+    }
 }

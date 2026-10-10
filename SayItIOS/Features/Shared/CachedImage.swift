@@ -54,9 +54,11 @@ struct CachedImage<Content: View, Placeholder: View>: View {
     }
 }
 
-extension CachedImage where Placeholder == EmptyView {
+extension CachedImage where Placeholder == Color {
+    /// Transparent while loading. Not EmptyView: SwiftUI never starts the
+    /// `.task` on an empty view, so the image would never load.
     init(url: URL?, @ViewBuilder content: @escaping (Image) -> Content) {
-        self.init(url: url, content: content, placeholder: { _ in EmptyView() })
+        self.init(url: url, content: content, placeholder: { _ in Color.clear })
     }
 }
 
