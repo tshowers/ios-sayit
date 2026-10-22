@@ -89,7 +89,7 @@ final class SignedOutSmokeTests: XCTestCase {
     }
 
     func testEachLayoutShowsInterestedAndItNeedsSignIn() {
-        for layout in ["1a", "1b", "1c"] {
+        for layout in ["find", "1a", "1b", "1c"] {
             app.terminate()
             launch(browsing: true, layout: layout)
             XCTAssertTrue(app.staticTexts["SayIt"].waitForExistence(timeout: 10), layout)

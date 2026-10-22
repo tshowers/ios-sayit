@@ -31,6 +31,9 @@ final class SayItRepository {
                 onChange(.failure(error))
                 return
             }
+            // On a cold start Firestore answers first from its empty local
+            // cache; that isn't "no posts", so wait for the server.
+            if let snapshot, snapshot.metadata.isFromCache, snapshot.documents.isEmpty { return }
             let items = snapshot?.documents.map { Post(id: $0.documentID, data: FirestoreValues.normalize($0.data())) } ?? []
             onChange(.success(items))
         }

@@ -17,6 +17,25 @@ final class FeedFilterTests: XCTestCase {
         XCTAssertEqual(FeedFilter(blockedUids: ["a"]).apply(to: posts).map(\.id), ["2", "5"])
     }
 
+    /// Seeded personas all post as the master account: blocking one hides that
+    /// persona only, and a block on the master account itself hides nothing.
+    func testSeededPersonasAreBlockedByNameNotByTheMasterAccount() {
+        let master = SeededPosts.masterUid
+        let seeded = [
+            Post(id: "m", authorUid: master, displayName: "Morgan at GreenBox Supplies", content: "Need boxes"),
+            Post(id: "l", authorUid: master, displayName: "Liam at EcoPack Solutions", content: "Selling tape"),
+            Post(id: "x", authorUid: "real", displayName: "Real Person", content: "Hi"),
+        ]
+        let morgan = SeededPosts.blockKey(for: seeded[0])!
+        XCTAssertEqual(morgan, "seed:Morgan at GreenBox Supplies")
+        XCTAssertEqual(SeededPosts.personaName(inBlockKey: morgan), "Morgan at GreenBox Supplies")
+        XCTAssertEqual(SeededPosts.blockKey(for: seeded[2]), "real")
+        XCTAssertNil(SeededPosts.personaName(inBlockKey: "real"))
+
+        XCTAssertEqual(FeedFilter(blockedUids: [morgan]).apply(to: seeded).map(\.id), ["l", "x"])
+        XCTAssertEqual(FeedFilter(blockedUids: [master]).apply(to: seeded).map(\.id), ["m", "l", "x"])
+    }
+
     func testCategoryFilter() {
         XCTAssertEqual(FeedFilter(category: "Automotive").apply(to: posts).map(\.id), ["2"])
         XCTAssertEqual(FeedFilter(category: "all").apply(to: posts).count, 3)

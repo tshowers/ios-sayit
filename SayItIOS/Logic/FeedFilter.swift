@@ -23,7 +23,9 @@ struct FeedFilter: Equatable {
         return posts.filter { post in
             if post.isHidden || hiddenPostIds.contains(post.id) { return false }
             if (post.contentRating ?? 1) >= Self.offensiveRating { return false }
-            if let author = post.authorUid, blockedUids.contains(author) { return false }
+            // Seeded personas are blocked by name; a block on the master
+            // account itself (written before that) is ignored.
+            if let key = SeededPosts.blockKey(for: post), blockedUids.contains(key) { return false }
 
             if !normalizedCategory.isEmpty, normalizedCategory != "all",
                post.category.lowercased() != normalizedCategory {

@@ -1,15 +1,15 @@
 import SwiftUI
 
-/// The "Organic" design system from the Claude Design handoff
-/// (design_handoff_sayit_post_feed/styles.css): cream ground, terracotta
-/// accent, sage secondary, Caprasimo display type and Figtree body type.
+/// The "Find" design system, same tokens as the web app
+/// (web-products/sayit/design_handoff_sayit_find_2/README.md): white / near-black
+/// ground, gray surfaces, blue primary, six soft tints, Helvetica Neue.
+/// The property names are the older Organic ones, re-pointed at Find values.
 enum Theme {
     static func hex(_ value: UInt32, _ opacity: Double = 1) -> Color {
         Color(.sRGB, red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255, opacity: opacity)
     }
 
-    /// Follows the system appearance: the handoff's light value, or a dark
-    /// counterpart from the same warm ramp.
+    /// Follows the system appearance: the light token, or its dark counterpart.
     static func adaptive(_ light: UInt32, _ dark: UInt32, _ opacity: Double = 1) -> Color {
         func ui(_ v: UInt32) -> UIColor {
             UIColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: opacity)
@@ -17,48 +17,68 @@ enum Theme {
         return Color(UIColor { $0.userInterfaceStyle == .dark ? ui(dark) : ui(light) })
     }
 
-    // Ground and text (adaptive)
-    static let ground = adaptive(0xF5EAD8, 0x1B1916)
-    /// Behind posts: the cream ground in light mode, black in dark mode.
-    static let stage = adaptive(0xF5EAD8, 0x0B0A09)
-    /// The 1b card sitting on the stage.
-    static let card = adaptive(0xFBF4E8, 0x221F1B)
-    static let surface = adaptive(0xEBDDC5, 0x2B2723)
-    static let text = adaptive(0x201E1D, 0xF3EBDD)
-    static let divider = adaptive(0x201E1D, 0xF3EBDD, 0.16)
-    /// Accent-colored text and links: terracotta 700 on light, 400 on dark.
-    static let accentInk = adaptive(0x8C491A, 0xF6A06B)
+    // Ground and text (adaptive): --bg, --surface, --surface2, --text, --muted
+    static let ground = adaptive(0xFFFFFF, 0x0C0E13)
+    /// Behind posts: the page ground.
+    static let stage = adaptive(0xFFFFFF, 0x0C0E13)
+    /// A card sitting on the ground.
+    static let card = adaptive(0xF2F3F6, 0x171A22)
+    static let surface = adaptive(0xF2F3F6, 0x171A22)
+    static let text = adaptive(0x0F1115, 0xF2F4F8)
+    /// Find separates by fill, not lines; where a line is still drawn it's --surface2.
+    static let divider = adaptive(0xE4E7ED, 0x242936)
+    /// Links and accent text: --blue-ink.
+    static let accentInk = adaptive(0x1F55E0, 0x86AEFF)
 
-    // Fixed: text on photos, scrims, filled buttons, tags with their own fill.
-    static let cream = hex(0xF9F4ED)
-    static let ink = hex(0x201E1D)
-    static let scrim = hex(0x201E1D)
+    // Fixed: text on photos, scrims, filled buttons.
+    static let cream = hex(0xFFFFFF)
+    static let ink = hex(0x0F1115)
+    static let scrim = hex(0x0F1115)
 
-    // Terracotta
-    static let accent = hex(0xC67139)
-    static let accent100 = adaptive(0xFFF2EB, 0x3A2416)
-    static let accent200 = hex(0xFFE1D0)
-    static let accent400 = hex(0xF6A06B)
-    static let accent600 = hex(0xB2622D)
-    static let accent700 = hex(0x8C491A)
-    static let accent800 = adaptive(0x643312, 0xFFC6A5)
+    // Blue (primary action) and the blue tint
+    static let accent = adaptive(0x2F6BFF, 0x3D7BFF)
+    static let accent100 = adaptive(0xE3ECFF, 0x15254A)
+    static let accent200 = adaptive(0xE3ECFF, 0x15254A)
+    static let accent400 = adaptive(0x2F6BFF, 0x3D7BFF)
+    static let accent600 = adaptive(0x2F6BFF, 0x3D7BFF)
+    static let accent700 = adaptive(0x1F55E0, 0x2F6BFF)
+    static let accent800 = adaptive(0x1D4FD6, 0xA3C1FF)
 
-    // Sage
-    static let sage100 = adaptive(0xF0FAE1, 0x26301C)
-    static let sage200 = hex(0xE1EECC)
-    static let sage300 = hex(0xCCDBB2)
-    static let sage700 = hex(0x56633F)
-    static let sage800 = adaptive(0x3D472B, 0xCCDBB2)
-    static let sage900 = hex(0x272E1B)
+    // Green tint (kind tags, success)
+    static let sage100 = adaptive(0xE0F6E6, 0x0E2C19)
+    static let sage200 = adaptive(0xE0F6E6, 0x0E2C19)
+    static let sage300 = adaptive(0xC6EDD1, 0x174226)
+    /// Solid green, legible under white text in both modes.
+    static let sage700 = hex(0x17703A)
+    static let sage800 = adaptive(0x17703A, 0x80E2A4)
+    static let sage900 = adaptive(0x17703A, 0x80E2A4)
 
-    // Neutrals (adaptive where they're grounds or secondary text)
-    static let neutral100 = adaptive(0xF9F4ED, 0x25221E)
-    static let neutral200 = adaptive(0xEEE7DB, 0x332F2A)
-    static let neutral300 = hex(0xDCD3C4)
-    static let neutral700 = adaptive(0x645C50, 0xB3A898)
-    static let neutral800 = adaptive(0x474238, 0xD6CCBC)
-    static let neutral900 = hex(0x2E2B25)
-    static let media = hex(0x2E2B25)
+    // Neutrals: grounds, --surface2, and secondary text (--muted)
+    static let neutral100 = adaptive(0xF2F3F6, 0x171A22)
+    static let neutral200 = adaptive(0xE4E7ED, 0x242936)
+    static let neutral300 = adaptive(0xE4E7ED, 0x242936)
+    static let neutral700 = adaptive(0x5A6170, 0x9AA2B2)
+    static let neutral800 = adaptive(0x454B57, 0xB4BBC8)
+    static let neutral900 = hex(0x0F1115)
+    static let media = adaptive(0xF2F3F6, 0x171A22)
+
+    // The six Find tints, background / foreground, in the web app's order
+    static let tints: [(bg: Color, fg: Color)] = [
+        (adaptive(0xE3ECFF, 0x15254A), adaptive(0x1D4FD6, 0xA3C1FF)), // blue
+        (adaptive(0xDAF6FC, 0x0C2D35), adaptive(0x08657D, 0x74E4F8)), // cyan
+        (adaptive(0xEFE5FF, 0x2A1847), adaptive(0x6427C9, 0xCDAAFF)), // violet
+        (adaptive(0xFFF4C2, 0x2F2906), adaptive(0x6E5700, 0xFFE56A)), // yellow
+        (adaptive(0xE0F6E6, 0x0E2C19), adaptive(0x17703A, 0x80E2A4)), // green
+        (adaptive(0xFFE3F1, 0x3A1029), adaptive(0xA8105A, 0xFF92C9)), // pink
+    ]
+
+    /// A post's tint, stable per key: the same hash as the web's tintFor(),
+    /// so a post has the same color in the app and on the web.
+    static func tint(for key: String) -> (bg: Color, fg: Color) {
+        var hash: Int32 = 0
+        for unit in key.utf16 { hash = hash &* 31 &+ Int32(unit) }
+        return tints[Int(abs(Int64(hash)) % Int64(tints.count))]
+    }
 
     /// Type and column scale: 1 on phones, up to 1.35 on iPad, so text isn't
     /// phone-sized on a big screen.
@@ -70,17 +90,17 @@ enum Theme {
     /// Width of a post's content column on big screens (the design is a phone).
     static let readableWidth: CGFloat = 600
 
-    /// Org tones (the handoff's sample orgs), all legible under cream text.
-    static let orgPalette: [Color] = [hex(0x728157), hex(0xB2622D), hex(0x645C50), hex(0x8C491A), hex(0x56633F)]
+    /// Org tones (the tint foregrounds' light values), all legible under white text.
+    static let orgPalette: [Color] = [hex(0x2F6BFF), hex(0x6427C9), hex(0x08657D), hex(0xA8105A), hex(0x17703A)]
     static func orgColor(_ name: String?) -> Color {
         guard let name, !name.isEmpty else { return neutral700 }
         return orgPalette[OrgDirectory.colorIndex(for: name) % orgPalette.count]
     }
 
-    // Type
-    static func display(_ size: CGFloat) -> Font { .custom("Caprasimo-Regular", size: size * scale, relativeTo: .title) }
+    // Type: Helvetica Neue throughout; headings are bold (add tight tracking at the call site).
+    static func display(_ size: CGFloat) -> Font { .custom("HelveticaNeue-Bold", size: size * scale, relativeTo: .title) }
     static func body(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom("Figtree", size: size * scale, relativeTo: .body).weight(weight)
+        .custom("Helvetica Neue", size: size * scale, relativeTo: .body).weight(weight)
     }
 }
 
@@ -88,10 +108,11 @@ enum Theme {
 struct PrimaryPillStyle: ButtonStyle {
     var fill: Color = Theme.accent600
     var pressedFill: Color = Theme.accent700
+    var ink: Color = Theme.cream
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Theme.cream)
+            .foregroundStyle(ink)
             .background(configuration.isPressed ? pressedFill : fill, in: Capsule())
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
@@ -135,7 +156,7 @@ struct RingAvatar: View {
     private var initials: some View {
         Text(Formatting.initials(name))
             .font(Theme.body(size * 0.33 / Theme.scale, .bold))
-            .foregroundStyle(Theme.ink)
+            .foregroundStyle(Theme.text)
     }
 }
 

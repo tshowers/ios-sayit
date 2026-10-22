@@ -225,17 +225,25 @@ struct BlockedPeopleView: View {
     @ObservedObject var model: AppModel
     @State private var errorMessage: String?
 
-    /// Names for blocked uids, taken from posts still in the feed.
-    private func name(for uid: String) -> String {
-        model.posts.first(where: { $0.authorUid == uid })?.displayName ?? "Someone you blocked"
+    /// A seeded persona's name, or a person's name taken from posts still in the feed.
+    private func name(for key: String) -> String {
+        SeededPosts.personaName(inBlockKey: key)
+            ?? model.posts.first(where: { $0.authorUid == key })?.displayName
+            ?? "Someone you blocked"
+    }
+
+    /// A block on the master account itself (from before seeded personas were
+    /// blocked by name) has no effect and is dropped on the next change.
+    private var entries: [String] {
+        model.blockedUids.subtracting([SeededPosts.masterUid]).sorted()
     }
 
     var body: some View {
         List {
-            if model.blockedUids.isEmpty {
+            if entries.isEmpty {
                 Text("You haven't blocked anyone.").foregroundStyle(.secondary)
             }
-            ForEach(model.blockedUids.sorted(), id: \.self) { uid in
+            ForEach(entries, id: \.self) { uid in
                 HStack {
                     Text(name(for: uid))
                     Spacer()

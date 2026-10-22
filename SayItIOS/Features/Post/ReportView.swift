@@ -83,8 +83,8 @@ struct ReportView: View {
             // (post-reports trigger), so it works for every user.
             try await model.repository.report(post, comment: comment, reason: reason)
             if comment == nil { model.hidePost(post.id) }
-            if alsoBlock, let author = blockableUid {
-                try await model.block(author)
+            if alsoBlock, let author = blockableUid, let name = blockableName {
+                try await model.block(SeededPosts.blockKey(authorUid: author, displayName: name))
             }
             sent = true
         } catch {

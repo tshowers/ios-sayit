@@ -44,7 +44,8 @@ struct MainView: View {
         .tint(Theme.accent600)
     }
 
-    private var onDark: Bool { model.selectedTab == .feed }
+    /// Organic layouts put the bar over the photo; Find keeps it on the page ground, as on the web.
+    private var onDark: Bool { model.selectedTab == .feed && model.feedLayout != .find }
     private var ink: Color { onDark ? Theme.cream : Theme.text }
 
     /// Full size where it fits; tighter spacing and a smaller wordmark on
@@ -67,7 +68,9 @@ struct MainView: View {
                 .fixedSize()
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 4)
-            if model.selectedTab == .feed && model.feedLayout == .sheet {
+            if model.feedLayout == .find {
+                findTabs(compact: compact)
+            } else if model.selectedTab == .feed && model.feedLayout == .sheet {
                 segmentedTabs(compact: compact)
             } else {
                 textTabs(compact: compact)
@@ -102,7 +105,7 @@ struct MainView: View {
     private func circleIcon(_ name: String, size: CGFloat) -> some View {
         Image(systemName: name).font(.system(size: size * 0.47, weight: .bold)).foregroundStyle(ink)
             .frame(width: size, height: size)
-            .background((onDark ? Theme.cream : Theme.text).opacity(0.14), in: Circle())
+            .background(model.feedLayout == .find ? Theme.surface : (onDark ? Theme.cream : Theme.text).opacity(0.14), in: Circle())
     }
 
     private let tabs: [(AppTab, String)] = [(.feed, "For you"), (.orgs, "Orgs"), (.inbox, "Inbox")]
@@ -125,6 +128,31 @@ struct MainView: View {
                 .accessibilityLabel(tab == .inbox && model.unreadThreadCount > 0 ? "Inbox, \(model.unreadThreadCount) new" : title)
             }
         }
+    }
+
+    /// Find's tab track: a --surface pill, the active tab in --text fill with --bg text.
+    private func findTabs(compact: Bool) -> some View {
+        HStack(spacing: 2) {
+            ForEach(tabs, id: \.0) { tab, title in
+                Button {
+                    model.selectedTab = tab
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(title).font(Theme.body(13, .bold)).fixedSize()
+                        if tab == .inbox && model.unreadThreadCount > 0 {
+                            Circle().fill(Theme.accent400).frame(width: 6, height: 6)
+                        }
+                    }
+                    .padding(.horizontal, compact ? 8 : 11).frame(height: 30)
+                    .foregroundStyle(model.selectedTab == tab ? Theme.ground : Theme.text)
+                    .background(model.selectedTab == tab ? Theme.text : .clear, in: Capsule())
+                }
+                .accessibilityAddTraits(model.selectedTab == tab ? .isSelected : [])
+                .accessibilityLabel(tab == .inbox && model.unreadThreadCount > 0 ? "Inbox, \(model.unreadThreadCount) new" : title)
+            }
+        }
+        .padding(3)
+        .background(Theme.surface, in: Capsule())
     }
 
     /// 1b's segmented pill over the photo.
@@ -155,12 +183,12 @@ struct MainView: View {
 
 // MARK: - Layout picker
 
-/// Pick one of the three feed designs - in onboarding and under Me.
+/// Pick one of the feed designs - in onboarding and under Me. Two across.
 struct LayoutPicker: View {
     @Binding var selection: FeedLayout
 
     var body: some View {
-        HStack(spacing: 10) {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 14) {
             ForEach(FeedLayout.allCases) { layout in
                 Button {
                     selection = layout
@@ -195,6 +223,30 @@ struct LayoutThumbnail: View {
                 Theme.media
                 Stripes(color: Theme.neutral700.opacity(0.35))
                 switch layout {
+                case .find:
+                    Theme.ground
+                    VStack(spacing: 0) {
+                        Theme.tints[0].bg
+                            .frame(height: h * 0.5)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
+                            .overlay(Capsule().fill(Theme.tints[0].fg).frame(width: w * 0.45, height: 6).padding(.bottom, 14))
+                        Spacer(minLength: 0)
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Circle().fill(Theme.ground).frame(width: 10)
+                                Capsule().fill(Theme.text).frame(width: w * 0.35, height: 4)
+                            }
+                            HStack(spacing: 3) {
+                                Capsule().fill(Theme.ground).frame(width: 14, height: 8)
+                                Capsule().fill(Theme.ground).frame(width: 14, height: 8)
+                            }
+                            Capsule().fill(Theme.accent600).frame(height: 10)
+                        }
+                        .padding(6)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    }
+                    .padding(5)
                 case .overlay:
                     LinearGradient(colors: [.clear, Theme.scrim.opacity(0.9)], startPoint: .center, endPoint: .bottom)
                     VStack(alignment: .leading, spacing: 4) {

@@ -101,7 +101,7 @@ struct PostDetailView: View {
                                 }
                                 Button("Block \(comment.authorDisplayName)", systemImage: "hand.raised") {
                                     guard model.auth.isSignedIn else { pushed = .signIn; return }
-                                    Task { try? await model.block(comment.authorUid) }
+                                    Task { try? await model.block(SeededPosts.blockKey(authorUid: comment.authorUid, displayName: comment.authorDisplayName)) }
                                 }
                             }
                         }
@@ -122,7 +122,7 @@ struct PostDetailView: View {
     }
 
     private var visibleComments: [Comment] {
-        comments.filter { !model.blockedUids.contains($0.authorUid) }
+        comments.filter { !model.blockedUids.contains(SeededPosts.blockKey(authorUid: $0.authorUid, displayName: $0.authorDisplayName)) }
     }
 
     private var commentBar: some View {
@@ -243,9 +243,9 @@ struct PostDetailView: View {
 
     @MainActor
     private func block() async {
-        guard let author = post?.authorUid else { return }
+        guard let post, let key = SeededPosts.blockKey(for: post) else { return }
         do {
-            try await model.block(author)
+            try await model.block(key)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

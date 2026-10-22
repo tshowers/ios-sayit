@@ -104,6 +104,15 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Try again after the feed failed to load.
+    func restartFeed() {
+        feedListener?.remove()
+        feedListener = nil
+        feedError = nil
+        isFeedLoading = true
+        startFeed()
+    }
+
     /// Opens a post on the Feed tab - from a Universal Link or right after
     /// the wizard's post goes live.
     func openPost(_ id: String) {
@@ -169,7 +178,9 @@ final class AppModel: ObservableObject {
         }
         if let loaded = try? await repository.profile(uid: uid) {
             profile = loaded
-            blockedUids = Set(loaded.blockedUids)
+            // A block on the master account (from before seeded personas were
+            // blocked by name) would hide every seeded post; drop it.
+            blockedUids = Set(loaded.blockedUids).subtracting([SeededPosts.masterUid])
             likedPostIds = Set(loaded.favoritePostIds)
         } else {
             profile = SayItProfile(uid: uid)
@@ -456,16 +467,19 @@ final class AppModel: ObservableObject {
 
     // MARK: Blocking
 
-    func block(_ uid: String) async throws {
-        try await updateBlocks(blockedUids.union([uid]))
+    /// Blocks an author by their block key (see SeededPosts.blockKey).
+    func block(_ key: String) async throws {
+        try await updateBlocks(blockedUids.union([key]))
     }
 
-    func unblock(_ uid: String) async throws {
-        try await updateBlocks(blockedUids.subtracting([uid]))
+    func unblock(_ key: String) async throws {
+        try await updateBlocks(blockedUids.subtracting([key]))
     }
 
-    private func updateBlocks(_ updated: Set<String>) async throws {
+    private func updateBlocks(_ requested: Set<String>) async throws {
         guard let me = auth.userId else { throw AuthServiceError.notSignedIn }
+        // Never keep the master account itself blocked: it would hide every seeded post.
+        let updated = requested.subtracting([SeededPosts.masterUid])
         let previous = blockedUids
         blockedUids = updated
         do {

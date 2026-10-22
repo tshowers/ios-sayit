@@ -94,6 +94,7 @@ struct FeedPagerView: View {
             counter: "\(index + 1) / \(posts.count)"
         )
         switch layout {
+        case .find: FindPostPage(post: post, actions: actions, topInset: topInset)
         case .overlay: OverlayPostPage(post: post, actions: actions, topInset: topInset)
         case .sheet: SheetPostPage(post: post, actions: actions, topInset: topInset)
         case .ribbon: RibbonPostPage(post: post, actions: actions, topInset: topInset)
@@ -104,7 +105,7 @@ struct FeedPagerView: View {
         if model.auth.isSignedIn { action() } else { route = .signIn }
     }
 
-    /// Page pills (1a, 1b): active 22pt, others 6pt at 50%.
+    /// Page pills (Find, 1a, 1b): active 22pt, others 6pt at 50%.
     @ViewBuilder
     private var indicator: some View {
         if layout != .ribbon && posts.count > 1 {
@@ -112,7 +113,7 @@ struct FeedPagerView: View {
                 HStack(spacing: 5) {
                     ForEach(indicatorRange, id: \.self) { i in
                         Capsule()
-                            .fill(Theme.cream.opacity(i == index ? 1 : 0.5))
+                            .fill((layout == .find ? Theme.text : Theme.cream).opacity(i == index ? 1 : layout == .find ? 0.22 : 0.5))
                             .frame(width: i == index ? 22 : 6, height: 4)
                     }
                 }
@@ -131,13 +132,32 @@ struct FeedPagerView: View {
         return Array(lower..<min(posts.count, lower + 9))
     }
 
+    /// Loading, a failed load (with Try again), or a truly empty feed -
+    /// never "No posts yet" just because the posts haven't arrived.
+    @ViewBuilder
     private var emptyState: some View {
         VStack(spacing: 12) {
-            Text("No posts yet").font(Theme.display(26)).foregroundStyle(Theme.cream)
-            Text("Be the first to say what you need or offer.")
-                .font(Theme.body(14))
-                .foregroundStyle(Theme.neutral300)
+            if model.isFeedLoading {
+                ProgressView().controlSize(.large).tint(Theme.text)
+                Text("Loading posts…").font(Theme.body(15)).foregroundStyle(Theme.neutral700)
+            } else if let error = model.feedError {
+                Text("Couldn't load posts").font(Theme.display(26)).foregroundStyle(Theme.text)
+                Text(error).font(Theme.body(14)).foregroundStyle(Theme.neutral700).multilineTextAlignment(.center)
+                Button {
+                    model.restartFeed()
+                } label: {
+                    Text("Try again").font(Theme.body(15, .bold)).padding(.horizontal, 22).frame(minHeight: 44)
+                }
+                .buttonStyle(PrimaryPillStyle())
+                .padding(.top, 4)
+            } else {
+                Text("No posts yet").font(Theme.display(26)).foregroundStyle(Theme.text)
+                Text("Be the first to say what you need or offer.")
+                    .font(Theme.body(14))
+                    .foregroundStyle(Theme.neutral700)
+            }
         }
+        .multilineTextAlignment(.center)
         .padding(32)
     }
 
@@ -224,7 +244,7 @@ struct PostActions {
 
 // MARK: - Shared pieces
 
-/// "I'm interested" / "In your inbox" - terracotta off, sage on, 0.25s.
+/// "I'm interested" / "In your inbox" - blue off, green tint on, 0.25s.
 struct InterestedButton: View {
     let actions: PostActions
     var height: CGFloat = 56
@@ -237,7 +257,7 @@ struct InterestedButton: View {
                 Label("Your post", systemImage: "person.fill").font(font)
                     .frame(maxWidth: .infinity, minHeight: height)
             }
-            .buttonStyle(PrimaryPillStyle(fill: Theme.neutral700, pressedFill: Theme.neutral800))
+            .buttonStyle(PrimaryPillStyle(fill: Theme.neutral200, pressedFill: Theme.neutral300, ink: Theme.text))
         } else if actions.canBeInterested {
             Button(action: actions.interested) {
                 HStack(spacing: 10) {
@@ -246,8 +266,9 @@ struct InterestedButton: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: height)
             }
-            .buttonStyle(PrimaryPillStyle(fill: actions.isInterested ? Theme.sage700 : Theme.accent600,
-                                          pressedFill: actions.isInterested ? Theme.hex(0x3D472B) : Theme.accent700))
+            .buttonStyle(PrimaryPillStyle(fill: actions.isInterested ? Theme.sage100 : Theme.accent600,
+                                          pressedFill: actions.isInterested ? Theme.sage300 : Theme.accent700,
+                                          ink: actions.isInterested ? Theme.sage800 : Theme.cream))
             .animation(.easeInOut(duration: 0.25), value: actions.isInterested)
             .accessibilityHint(actions.isInterested ? "Removes it from your inbox" : "Adds it to your inbox so you can message the author")
         }
