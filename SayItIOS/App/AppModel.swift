@@ -182,6 +182,11 @@ final class AppModel: ObservableObject {
             // blocked by name) would hide every seeded post; drop it.
             blockedUids = Set(loaded.blockedUids).subtracting([SeededPosts.masterUid])
             likedPostIds = Set(loaded.favoritePostIds)
+            // Remember the account's feed design on this device, so the next
+            // launch opens in it instead of flashing the default first.
+            if let layout = loaded.feedLayout {
+                UserDefaults.standard.set(layout.rawValue, forKey: "sayit.feedLayout")
+            }
         } else {
             profile = SayItProfile(uid: uid)
         }

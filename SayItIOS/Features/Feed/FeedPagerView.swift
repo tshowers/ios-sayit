@@ -17,6 +17,13 @@ struct FeedPagerView: View {
     @State private var route: AppRoute?
     /// The video playing in theater mode.
     @State private var theaterVideo: PostVideo?
+    /// True during a sideways swipe and briefly after. The page follows the
+    /// finger, so a swipe that starts on a button ends over it, and SwiftUI
+    /// would count it as a tap (toggling I'm interested while paging).
+    @State private var swiping = false
+    /// The Find text card's reply box has focus: swiping is off so typing
+    /// can't page away.
+    @State private var replying = false
 
     private let snap = Animation.timingCurve(0.2, 0.8, 0.2, 1, duration: 0.46)
 
@@ -50,20 +57,25 @@ struct FeedPagerView: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 10)
                     .onChanged { value in
-                        guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                        guard !replying, abs(value.translation.width) > abs(value.translation.height) else { return }
+                        if abs(value.translation.width) > 12 { swiping = true }
                         drag = value.translation.width
                     }
                     .onEnded { value in
+                        guard !replying else { return }
                         let next = FeedPaging.index(after: value.translation.width, from: index, count: posts.count)
                         withAnimation(snap) {
                             if next != index { orgCardPostId = nil }
                             index = next
                             drag = 0
                         }
+                        // Outlasts the button's touch-up, which arrives with the drag's end.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { swiping = false }
                     }
             )
         }
         .animation(.easeInOut(duration: 0.25), value: model.toast)
+        .sensoryFeedback(.selection, trigger: index)
         .onAppear { index = min(startIndex, max(posts.count - 1, 0)) }
         .onChange(of: posts.count) { _, count in if index >= count { index = max(count - 1, 0) } }
         .navigationDestination(item: $route) { AppDestination(model: model, route: $0) }
@@ -86,19 +98,24 @@ struct FeedPagerView: View {
             isOwn: post.authorUid != nil && post.authorUid == model.auth.userId,
             canBeInterested: post.authorUid != nil && !post.isSystemPost,
             shareURL: model.postURL(for: post),
-            like: { signedIn { model.toggleLike(post) } },
-            interested: { signedIn { Task { await model.toggleInterest(post) } } },
-            openOrg: { orgCardPostId = post.id; Task { if model.orgs.isEmpty { await model.loadOrgs() } } },
-            openPost: { route = .post(post.id) },
-            play: { theaterVideo = $0 },
+            like: tap { signedIn { model.toggleLike(post) } },
+            interested: tap { signedIn { Task { await model.toggleInterest(post) } } },
+            openOrg: tap { orgCardPostId = post.id; Task { if model.orgs.isEmpty { await model.loadOrgs() } } },
+            openPost: tap { route = .post(post.id) },
+            play: { video in if !swiping { theaterVideo = video } },
             counter: "\(index + 1) / \(posts.count)"
         )
         switch layout {
-        case .find: FindPostPage(post: post, actions: actions, topInset: topInset)
+        case .find: FindPostPage(model: model, post: post, actions: actions, topInset: topInset, isReplying: $replying, push: { route = $0 })
         case .overlay: OverlayPostPage(post: post, actions: actions, topInset: topInset)
         case .sheet: SheetPostPage(post: post, actions: actions, topInset: topInset)
         case .ribbon: RibbonPostPage(post: post, actions: actions, topInset: topInset)
         }
+    }
+
+    /// A button action that does nothing while the feed is being swiped.
+    private func tap(_ action: @escaping () -> Void) -> () -> Void {
+        { if !swiping { action() } }
     }
 
     private func signedIn(_ action: () -> Void) {

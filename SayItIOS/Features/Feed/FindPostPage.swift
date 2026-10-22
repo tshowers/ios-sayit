@@ -7,15 +7,29 @@ import SwiftUI
 /// at the top and fades into the page; the post sits on a --surface card
 /// below with like / comments / share pills and a full-width I'm interested.
 struct FindPostPage: View {
+    @ObservedObject var model: AppModel
     let post: Post
     let actions: PostActions
     var topInset: CGFloat
+    /// True while the reply box has focus; the pager stops swiping.
+    @Binding var isReplying: Bool
+    /// Pushes a page (sign in, guidelines) on the feed's stack.
+    var push: (AppRoute) -> Void = { _ in }
     private let s = Theme.scale
 
     private var tint: (bg: Color, fg: Color) { Theme.tint(for: post.id) }
     private var hasPhoto: Bool { post.imageURL != nil }
 
     var body: some View {
+        // A post with no image, video or link card gets the text layout.
+        if post.imageURL == nil && post.linkPreview == nil {
+            FindTextPostCard(model: model, post: post, actions: actions, topInset: topInset, isReplying: $isReplying, push: push)
+        } else {
+            photoPage
+        }
+    }
+
+    private var photoPage: some View {
         GeometryReader { geo in
             let size = geo.size
             ZStack(alignment: .top) {

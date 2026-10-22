@@ -12,6 +12,13 @@ struct MainView: View {
         self.authService = model.auth
     }
 
+    /// Find feed: "grid" or "single" (One at a time), remembered like the web's toggle.
+    @AppStorage("sayit.boardView") private var boardView = "single"
+    /// The post One at a time opens on after a grid card is tapped.
+    @State private var singleStart = 0
+
+    private var showsViewToggle: Bool { model.selectedTab == .feed && model.feedLayout == .find }
+
     private var feedPosts: [Post] {
         FeedFilter(blockedUids: model.blockedUids, hiddenPostIds: model.hiddenPostIds).apply(to: model.posts)
     }
@@ -23,9 +30,20 @@ struct MainView: View {
                 ZStack(alignment: .top) {
                     switch model.selectedTab {
                     case .feed:
-                        FeedPagerView(model: model, posts: feedPosts, layout: model.feedLayout, topInset: barTop + 48)
-                            .ignoresSafeArea()
-                            .id(model.feedLayout)
+                        if showsViewToggle && boardView == "grid" {
+                            FindGridView(model: model, posts: feedPosts, topInset: barTop + 96) { index in
+                                singleStart = index
+                                boardView = "single"
+                            }
+                            .ignoresSafeArea(.container)
+                        } else {
+                            // Find leaves a row under the bar for the Grid / One at a time toggle.
+                            FeedPagerView(model: model, posts: feedPosts, startIndex: singleStart, layout: model.feedLayout,
+                                          topInset: barTop + (showsViewToggle ? 96 : 48))
+                                // Not the keyboard's: a text post's reply box rides up with it.
+                                .ignoresSafeArea(.container)
+                                .id(model.feedLayout)
+                        }
                     case .orgs:
                         OrgsView(model: model)
                             .padding(.top, 52)
@@ -36,12 +54,44 @@ struct MainView: View {
                             .background(Theme.ground.ignoresSafeArea())
                     }
                     topBar
+                    if showsViewToggle {
+                        viewToggle
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 50)
+                    }
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
             .appDestinations(model)
         }
         .tint(Theme.accent600)
+    }
+
+    /// Grid / One at a time, as on the web board: a --surface track, the
+    /// active one in --text fill.
+    private var viewToggle: some View {
+        HStack(spacing: 2) {
+            viewToggleButton("grid", title: "Grid", systemImage: "square.grid.2x2")
+            viewToggleButton("single", title: "One at a time", systemImage: "square")
+        }
+        .padding(3)
+        .background(Theme.surface, in: Capsule())
+    }
+
+    private func viewToggleButton(_ value: String, title: String, systemImage: String) -> some View {
+        let active = boardView == value
+        return Button {
+            if value == "single" && !active { singleStart = 0 }
+            boardView = value
+        } label: {
+            Label(title, systemImage: systemImage)
+                .font(Theme.body(13, .bold))
+                .padding(.horizontal, 12).frame(height: 32)
+                .foregroundStyle(active ? Theme.ground : Theme.text)
+                .background(active ? Theme.text : .clear, in: Capsule())
+        }
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     /// Organic layouts put the bar over the photo; Find keeps it on the page ground, as on the web.

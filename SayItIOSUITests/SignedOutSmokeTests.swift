@@ -112,6 +112,21 @@ final class SignedOutSmokeTests: XCTestCase {
         }
     }
 
+    /// The page follows the finger, so a swipe that starts on I'm interested
+    /// ends over it; it must page, not tap (which toggled the inbox, or here,
+    /// signed out, pushes sign-in).
+    func testSwipingFromTheInterestedButtonPagesWithoutTappingIt() {
+        launch(browsing: true, layout: "find")
+        XCTAssertTrue(app.staticTexts["SayIt"].waitForExistence(timeout: 10))
+        _ = app.buttons["I'm interested"].firstMatch.waitForExistence(timeout: 15)
+        guard let interested = app.buttons.matching(identifier: "I'm interested").allElementsBoundByIndex.first(where: { $0.exists && $0.isHittable }) else {
+            return XCTFail("The first post should show I'm interested")
+        }
+        let start = interested.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: interested.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
+        XCTAssertFalse(app.staticTexts["Sign in to Say It"].waitForExistence(timeout: 3), "A swipe must not count as a tap")
+    }
+
     /// iPad landscape used to push the post off screen entirely.
     func testWholePostIsVisibleInEveryOrientation() throws {
         launch(browsing: true, layout: "1b")
